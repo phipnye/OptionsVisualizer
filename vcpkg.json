@@ -2,10 +2,10 @@
   "name": "options-visualizer",
   "version-string": "1.0.0",
   "dependencies": [
-      "boost-math",
-      "boost-multiprecision",
-      "drogon",
-      "jsoncpp"
-    ],
-    "builtin-baseline": "b2c74683ecfd6a8e7d27ffb0df077f66a9339509"
+    "boost-math",
+    "boost-multiprecision",
+    "drogon",
+    "jsoncpp"
+  ],
+  "builtin-baseline": "74e6536215718009aae747d86d84b78376bf9e09"
 }
