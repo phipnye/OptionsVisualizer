@@ -469,7 +469,7 @@ def update_heatmaps(strike_range: list[float], vol_range: list[float], S: float,
 
         # The response is a flat binary buffer of float64 prices
         flat_grid: np.ndarray = np.frombuffer(resp.content, dtype=np.float64)
-        # Reshape to a 3D array: [Strike_Index, Vol_Index, 4 (number of option types)]
+        # Reshape to a 3D array: [Vol_Index, Strike_Index, 4 (number of option types)]
         full_grid_3d: np.ndarray = flat_grid.reshape((GRID_RESOLUTION, GRID_RESOLUTION, 4))
 
         # Determine the min/max price globally to unify the color scale across all four charts
