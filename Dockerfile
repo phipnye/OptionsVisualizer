@@ -1,5 +1,5 @@
 # --- Build
-FROM ubuntu:22.04 as builder
+FROM ubuntu:24.04 as builder
 LABEL maintainer="Philip Nye <phipnye@proton.me>"
 
 # Install build tools
