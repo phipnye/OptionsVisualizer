@@ -480,7 +480,7 @@ def update_heatmaps(strike_range: list[float], vol_range: list[float], S: float,
     except requests.exceptions.RequestException as e:
         print(f"Error communicating with backend at {SERVER_URL}: {e}")
         # Return four empty/error figures on failure
-        error_figure = generate_heatmap_figure(
+        error_figure: Figure = generate_heatmap_figure(
             np.zeros((GRID_RESOLUTION, GRID_RESOLUTION)),
             strike_range,
             vol_range,
