@@ -37,14 +37,15 @@ void HeatMapController::asyncHandleHttpRequest(const drogon::HttpRequestPtr& req
     Option::Grid::OptionGrid<double, Option::EuropeanPut<double>> gridEuroPuts{N, N};
     static const double den{static_cast<double>(N - 1)};
 
-    for (std::size_t i{0}; i < N; ++i) {
-        for (std::size_t j{0}; j < N; ++j) {
-            const double strike{kMin + ((kMax - kMin) * (static_cast<double>(i) / den))};
-            const double vol{sigmaMin + ((sigmaMax - sigmaMin) * (static_cast<double>(j) / den))};
-            gridAmerCalls.emplace(i, j, S, strike, r, q, vol, T_exp);
-            gridAmerPuts.emplace(i, j, S, strike, r, q, vol, T_exp);
-            gridEuroCalls.emplace(i, j, S, strike, r, q, vol, T_exp);
-            gridEuroPuts.emplace(i, j, S, strike, r, q, vol, T_exp);
+    for (std::size_t volIdx{0}; volIdx < N; ++volIdx) { // row index volatility
+        const double vol{sigmaMin + ((sigmaMax - sigmaMin) * (static_cast<double>(volIdx) / den))};
+
+        for (std::size_t strikeIndex{0}; strikeIndex < N; ++strikeIndex) { // column index strike
+            const double strike{kMin + ((kMax - kMin) * (static_cast<double>(strikeIndex) / den))};
+            gridAmerCalls.emplace(volIdx, strikeIndex, S, strike, r, q, vol, T_exp);
+            gridAmerPuts.emplace(volIdx, strikeIndex, S, strike, r, q, vol, T_exp);
+            gridEuroCalls.emplace(volIdx, strikeIndex, S, strike, r, q, vol, T_exp);
+            gridEuroPuts.emplace(volIdx, strikeIndex, S, strike, r, q, vol, T_exp);
         }
     }
 
@@ -61,12 +62,12 @@ void HeatMapController::asyncHandleHttpRequest(const drogon::HttpRequestPtr& req
     body.resize(4 * N * N * sizeof(double));
     std::size_t idx{0};
 
-    for (std::size_t i{0}; i < N; ++i) {
-        for (std::size_t j{0}; j < N; ++j) {
-            copyToBuffer(idx, body, gridAmerCalls(i, j).getPrice());
-            copyToBuffer(idx, body, gridAmerPuts(i, j).getPrice());
-            copyToBuffer(idx, body, gridEuroCalls(i, j).getPrice());
-            copyToBuffer(idx, body, gridEuroPuts(i, j).getPrice());
+    for (std::size_t volIdx{0}; volIdx < N; ++volIdx) {              // row index volatility
+        for (std::size_t strikeIdx{0}; strikeIdx < N; ++strikeIdx) { // column index strike
+            copyToBuffer(idx, body, gridAmerCalls(volIdx, strikeIdx).getPrice());
+            copyToBuffer(idx, body, gridAmerPuts(volIdx, strikeIdx).getPrice());
+            copyToBuffer(idx, body, gridEuroCalls(volIdx, strikeIdx).getPrice());
+            copyToBuffer(idx, body, gridEuroPuts(volIdx, strikeIdx).getPrice());
         }
     }
 
