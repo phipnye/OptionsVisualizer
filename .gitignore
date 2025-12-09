@@ -12,9 +12,6 @@ __pycache__/
 venv/
 .venv/
 
-# VS Code/Dev Container files
-.vscode/
-
 # OS files
 .DS_Store
 

@@ -1,0 +1,6 @@
+{
+    "cmake.configureArgs": [
+        "-DCMAKE_TOOLCHAIN_FILE=/usr/local/vcpkg/scripts/buildsystems/vcpkg.cmake",
+        "-DCMAKE_CXX_COMPILER=/usr/bin/g++"
+    ]
+}
