@@ -14,6 +14,7 @@ public:
 private:
     static void copyToBuffer(std::size_t& idx, std::string& body, double optionPrice);
 
+public:
     PATH_LIST_BEGIN
     PATH_ADD("/heatmap", drogon::Post);
     PATH_LIST_END
