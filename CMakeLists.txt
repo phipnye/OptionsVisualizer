@@ -1,7 +1,8 @@
-cmake_minimum_required(VERSION 3.28)
+cmake_minimum_required(VERSION 3.22)
 project(PricingEngineServer VERSION 1.0.0 LANGUAGES CXX)
 
 # --- Set the standard
+set(CMAKE_CXX_COMPILER /usr/bin/g++)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
@@ -56,9 +57,15 @@ target_link_options(PricingEngineServer PRIVATE
 target_include_directories(PricingEngineServer PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
 # Find and link boost
-find_package(Boost REQUIRED)
-target_link_libraries(PricingEngineServer PRIVATE Boost::boost)
+find_package(Boost REQUIRED COMPONENTS math)
+target_link_libraries(PricingEngineServer PRIVATE Boost::math)
+find_package(Boost REQUIRED COMPONENTS multiprecision)
+target_link_libraries(PricingEngineServer PRIVATE Boost::multiprecision)
 
 # Find and link drogon
-find_package(Drogon REQUIRED)
+find_package(Drogon CONFIG REQUIRED)
 target_link_libraries(PricingEngineServer PRIVATE Drogon::Drogon)
+
+# Find and link jsoncpp
+find_package(jsoncpp CONFIG REQUIRED)
+target_link_libraries(PricingEngineServer PRIVATE JsonCpp::JsonCpp)
