@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.22)
-project(PricingEngineServer VERSION 1.0.0 LANGUAGES CXX)
+project(PricingModule VERSION 1.0.1 LANGUAGES CXX)
 
 # --- Set the standard
 set(CMAKE_CXX_STANDARD 20)
@@ -20,11 +20,14 @@ target_compile_options(StrictFlags INTERFACE
     "-Werror"
 )
 
-# --- Define executable
-add_executable(PricingEngineServer src/main.cpp src/server/HeatMapController.cpp)
+# --- Setup pybind module
+find_package(pybind11 CONFIG REQUIRED)
+pybind11_add_module(pricing
+    src/placeholder.cpp
+)
 
 # Link the strict compiler flags
-target_link_libraries(PricingEngineServer PRIVATE StrictFlags)
+target_link_libraries(pricing PRIVATE StrictFlags)
 
 # Apply Debug/Optimization and Sanitizers
 set(SANITIZER_FLAGS 
@@ -38,7 +41,7 @@ set(SANITIZER_FLAGS
 )
 
 # Apply sanitizer flags to the compiler
-target_compile_options(PricingEngineServer PRIVATE 
+target_compile_options(pricing PRIVATE 
     # Debug info and no optimization
     $<$<CONFIG:Debug>:-O0 -g>
 
@@ -47,24 +50,14 @@ target_compile_options(PricingEngineServer PRIVATE
 )
 
 # Apply Sanitizer flags to the linker to link the runtime libraries
-target_link_options(PricingEngineServer PRIVATE 
+target_link_options(pricing PRIVATE 
     $<$<CONFIG:Debug>:${SANITIZER_FLAGS}>
 )
 
 #--- Dependencies
 # Include directories
-target_include_directories(PricingEngineServer PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+target_include_directories(pricing PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
 # Find and link boost
-find_package(Boost REQUIRED COMPONENTS math)
-target_link_libraries(PricingEngineServer PRIVATE Boost::math)
-find_package(Boost REQUIRED COMPONENTS multiprecision)
-target_link_libraries(PricingEngineServer PRIVATE Boost::multiprecision)
-
-# Find and link drogon
-find_package(Drogon CONFIG REQUIRED)
-target_link_libraries(PricingEngineServer PRIVATE Drogon::Drogon)
-
-# Find and link jsoncpp
-find_package(jsoncpp CONFIG REQUIRED)
-target_link_libraries(PricingEngineServer PRIVATE JsonCpp::JsonCpp)
+find_package(Boost REQUIRED COMPONENTS math multiprecision)
+target_link_libraries(pricing PRIVATE Boost::math Boost::multiprecision)

@@ -16,7 +16,7 @@ venv/
 .DS_Store
 
 # VS code files
-.vscode/
+.vscode/settings.json
 
 # Docker (Ignore the final built image/artifacts)
 target/

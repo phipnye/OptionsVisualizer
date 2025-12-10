@@ -4,8 +4,7 @@
   "dependencies": [
     "boost-math",
     "boost-multiprecision",
-    "drogon",
-    "jsoncpp"
+    "pybind11"
   ],
   "builtin-baseline": "b2c74683ecfd6a8e7d27ffb0df077f66a9339509"
 }

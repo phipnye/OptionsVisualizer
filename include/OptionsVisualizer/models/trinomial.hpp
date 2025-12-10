@@ -2,7 +2,9 @@
 
 #include "OptionsVisualizer/math/generic_math.hpp"
 #include "OptionsVisualizer/models/constants.hpp"
-#include "OptionsVisualizer/option/Payoff.hpp"
+#include "OptionsVisualizer/payoff/Call.hpp"
+#include "OptionsVisualizer/payoff/Payoff.hpp"
+#include "OptionsVisualizer/payoff/Put.hpp"
 #include "OptionsVisualizer/utils/compare_floats.hpp"
 #include "OptionsVisualizer/utils/typing.hpp"
 #include <cassert>
@@ -69,6 +71,7 @@ TrinomialParams<T> setupTrinomial(utils::type::ParamT<T> r, utils::type::ParamT<
 } // namespace
 
 namespace pricing {
+
 /**
  * @brief Prices an American option using the trinomial options pricing model.
  * @tparam T The numeric type (e.g., double, boost::multiprecision::cpp_dec_float_50).
@@ -124,6 +127,30 @@ T trinomialPrice(utils::type::ParamT<T> S, utils::type::ParamT<T> K, utils::type
 
     assert(optionValues.size() == 1);
     return optionValues[0];
+}
+
+/**
+ * @brief Prices an American call using the trinomial options pricing model.
+ * @tparam T The numeric type (e.g., double, boost::multiprecision::cpp_dec_float_50).
+ * @param PayoffFun The type of the payoff function (Callable object).
+ */
+template <typename T>
+T trinomialCall(utils::type::ParamT<T> S, utils::type::ParamT<T> K, utils::type::ParamT<T> r, utils::type::ParamT<T> q,
+                utils::type::ParamT<T> sigma, utils::type::ParamT<T> T_exp) {
+    static constexpr Payoff::Call callPayoff{};
+    return trinomialPrice(S, K, r, q, sigma, T_exp, callPayoff);
+}
+
+/**
+ * @brief Prices an American put using the trinomial options pricing model.
+ * @tparam T The numeric type (e.g., double, boost::multiprecision::cpp_dec_float_50).
+ * @param PayoffFun The type of the payoff function (Callable object).
+ */
+template <typename T>
+T trinomialPut(utils::type::ParamT<T> S, utils::type::ParamT<T> K, utils::type::ParamT<T> r, utils::type::ParamT<T> q,
+               utils::type::ParamT<T> sigma, utils::type::ParamT<T> T_exp) {
+    static constexpr Payoff::Put putPayoff{};
+    return trinomialPrice(S, K, r, q, sigma, T_exp, putPayoff);
 }
 
 } // namespace pricing
