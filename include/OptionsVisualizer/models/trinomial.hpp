@@ -137,7 +137,7 @@ T trinomialPrice(utils::type::ParamT<T> S, utils::type::ParamT<T> K, utils::type
 template <typename T>
 T trinomialCall(utils::type::ParamT<T> S, utils::type::ParamT<T> K, utils::type::ParamT<T> r, utils::type::ParamT<T> q,
                 utils::type::ParamT<T> sigma, utils::type::ParamT<T> T_exp) {
-    static constexpr Payoff::Call callPayoff{};
+    static constexpr Payoff::Call<T> callPayoff{};
     return trinomialPrice(S, K, r, q, sigma, T_exp, callPayoff);
 }
 
@@ -149,7 +149,7 @@ T trinomialCall(utils::type::ParamT<T> S, utils::type::ParamT<T> K, utils::type:
 template <typename T>
 T trinomialPut(utils::type::ParamT<T> S, utils::type::ParamT<T> K, utils::type::ParamT<T> r, utils::type::ParamT<T> q,
                utils::type::ParamT<T> sigma, utils::type::ParamT<T> T_exp) {
-    static constexpr Payoff::Put putPayoff{};
+    static constexpr Payoff::Put<T> putPayoff{};
     return trinomialPrice(S, K, r, q, sigma, T_exp, putPayoff);
 }
 

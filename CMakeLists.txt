@@ -23,7 +23,7 @@ target_compile_options(StrictFlags INTERFACE
 # --- Setup pybind module
 find_package(pybind11 CONFIG REQUIRED)
 pybind11_add_module(pricing
-    src/placeholder.cpp
+    src/module.cpp
 )
 
 # Link the strict compiler flags

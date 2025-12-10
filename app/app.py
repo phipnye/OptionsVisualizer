@@ -399,7 +399,7 @@ def update_strike_and_spot(stock_price: float) -> tuple[float, float, float, lis
         mark_interval = magnitude * 10.0
 
     mark_interval: float = max(1.0, mark_interval)
-    marks: dict = {}
+    marks: dict[float, dict[str, str | dict[str, str]]] = {}
     start_mark: float = np.ceil(strike_min / mark_interval) * mark_interval  # first clean mark >= to strike_min
 
     # Generate the actual marks dictionary
