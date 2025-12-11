@@ -8,7 +8,7 @@ namespace pricing {
 
 /**
  * @brief Prices a European Call option using the Black-Scholes-Merton (BSM) model.
- * @tparam T The numeric type (e.g., double, boost::multiprecision::cpp_dec_float_50).
+ * @tparam T The floating-point type used (e.g., double, boost::multiprecision::cpp_dec_float_50).
  */
 template <typename T>
 T bsmCall(utils::type::ParamT<T> S, utils::type::ParamT<T> K, utils::type::ParamT<T> r, utils::type::ParamT<T> q,
@@ -35,7 +35,7 @@ T bsmCall(utils::type::ParamT<T> S, utils::type::ParamT<T> K, utils::type::Param
 
 /**
  * @brief Prices a European Put option using the Black-Scholes-Merton Call price and Put-Call Parity.
- * @tparam T The numeric type.
+ * @tparam T The floating-point type used (e.g., double, boost::multiprecision::cpp_dec_float_50).
  */
 template <typename T>
 T bsmPut(utils::type::ParamT<T> S, utils::type::ParamT<T> K, utils::type::ParamT<T> r, utils::type::ParamT<T> q,

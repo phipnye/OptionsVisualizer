@@ -74,12 +74,12 @@ namespace pricing {
 
 /**
  * @brief Prices an American option using the trinomial options pricing model.
- * @tparam T The numeric type (e.g., double, boost::multiprecision::cpp_dec_float_50).
+ * @tparam T The floating-point type used (e.g., double, boost::multiprecision::cpp_dec_float_50).
  * @param PayoffFun The type of the payoff function (Callable object).
  */
 template <typename T>
 T trinomialPrice(utils::type::ParamT<T> S, utils::type::ParamT<T> K, utils::type::ParamT<T> r, utils::type::ParamT<T> q,
-                 utils::type::ParamT<T> sigma, utils::type::ParamT<T> T_exp, const Payoff::Payoff<T>& payoffFun) {
+                 utils::type::ParamT<T> sigma, utils::type::ParamT<T> T_exp, Payoff::Payoff<T> payoffFun) {
     // Setup the function with the parameters we need
     auto [dt, u, d, discountFactor, p_u, p_m, p_d]{setupTrinomial<T>(r, q, sigma, T_exp, constants::trinomialDepth)};
 
@@ -127,30 +127,6 @@ T trinomialPrice(utils::type::ParamT<T> S, utils::type::ParamT<T> K, utils::type
 
     assert(optionValues.size() == 1);
     return optionValues[0];
-}
-
-/**
- * @brief Prices an American call using the trinomial options pricing model.
- * @tparam T The numeric type (e.g., double, boost::multiprecision::cpp_dec_float_50).
- * @param PayoffFun The type of the payoff function (Callable object).
- */
-template <typename T>
-T trinomialCall(utils::type::ParamT<T> S, utils::type::ParamT<T> K, utils::type::ParamT<T> r, utils::type::ParamT<T> q,
-                utils::type::ParamT<T> sigma, utils::type::ParamT<T> T_exp) {
-    static constexpr Payoff::Call<T> callPayoff{};
-    return trinomialPrice(S, K, r, q, sigma, T_exp, callPayoff);
-}
-
-/**
- * @brief Prices an American put using the trinomial options pricing model.
- * @tparam T The numeric type (e.g., double, boost::multiprecision::cpp_dec_float_50).
- * @param PayoffFun The type of the payoff function (Callable object).
- */
-template <typename T>
-T trinomialPut(utils::type::ParamT<T> S, utils::type::ParamT<T> K, utils::type::ParamT<T> r, utils::type::ParamT<T> q,
-               utils::type::ParamT<T> sigma, utils::type::ParamT<T> T_exp) {
-    static constexpr Payoff::Put<T> putPayoff{};
-    return trinomialPrice(S, K, r, q, sigma, T_exp, putPayoff);
 }
 
 } // namespace pricing
