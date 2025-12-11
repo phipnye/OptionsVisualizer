@@ -1,0 +1,26 @@
+[build-system]
+# Tells pip to use scikit-build-core (which knows how to run CMake)
+requires = ["scikit-build-core>=0.8.0", "pybind11>=2.10.0"]
+build-backend = "scikit_build_core.build"
+
+[tool.scikit-build]
+cmake.args = [
+    "-DCMAKE_BUILD_TYPE=Debug",
+    "-DCMAKE_TOOLCHAIN_FILE=/usr/local/vcpkg/scripts/buildsystems/vcpkg.cmake",
+    "-DCMAKE_CXX_COMPILER=/usr/bin/g++"
+]
+
+[project]
+# Name used when installing the package via pip
+name = "options-visualizer-pricing"
+version = "1.0.1"
+description = "High-performance option pricing module using C++ and pybind11."
+
+# Essential runtime dependencies (using array_t in C++ source)
+dependencies = [
+    "numpy",
+]
+
+readme = "README.md"
+license = {text = "MIT"}
+authors = [{name = "Philip Nye", email = "phipnye@proton.me"}]

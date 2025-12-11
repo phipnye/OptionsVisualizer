@@ -35,6 +35,13 @@
             }
         }
     },
-    "postCreateCommand": "sudo apt-get update && sudo apt-get install -y autoconf autoconf-archive automake libtool && python3 -m venv .venv && source .venv/bin/activate && python3 -m pip install -r app/requirements.txt",
+    "postCreateCommand": [
+        "sudo apt-get update",
+        "sudo apt-get install -y autoconf autoconf-archive automake libtool",
+        "python3 -m venv .venv",
+        "source .venv/bin/activate",
+        "python3 -m pip install -r app/requirements.txt",
+        "python3 -m pip install -e ."
+    ],
     "remoteUser": "vscode"
 }

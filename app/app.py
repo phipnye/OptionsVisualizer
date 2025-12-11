@@ -1,5 +1,5 @@
 import dash
-import requests
+import pricing
 import numpy as np
 import plotly.express as px
 from dash import dcc, html
@@ -27,12 +27,10 @@ from styles import (
     FONT_PLOT_BAR_TITLE,
     FONT_PLOT_BAR_THICKNESS,
 )
-from typing import Any, Optional
+from typing import Optional
 
 # Defines the resolution of the strike/volatility grid (e.g., 10x10)
 GRID_RESOLUTION: int = 10
-# The HTTP endpoint for the C++ option pricing backend
-SERVER_URL: str = "http://localhost:8080/heatmap"
 
 # Initialize the Dash application using a dark mode theme
 APP: dash.Dash = dash.Dash(
@@ -73,18 +71,14 @@ def create_input_group(label: str, id_name: str, value: float | int, min_val: fl
     )
 
 # Function to generate a Plotly heatmap figure
-def generate_heatmap_figure(options_grid: np.ndarray, strike_range: list[float], vol_range: list[float],
+def generate_heatmap_figure(options_grid: np.ndarray, K_arr: np.ndarray, sigma_arr: np.ndarray,
                             title_label: str, color_range: Optional[list[float]] = None) -> Figure:
     """Generates a standardized heatmap figure with custom styling and text overlay."""
-    # Define the coordinates for the axes based on the input ranges and grid resolution
-    x_axis: np.ndarray = np.linspace(strike_range[0], strike_range[1], GRID_RESOLUTION)
-    y_axis: np.ndarray = np.linspace(vol_range[0], vol_range[1], GRID_RESOLUTION)
-
     # Create the Plotly figure
     fig: Figure = px.imshow(
         options_grid,
-        x=x_axis,
-        y=y_axis,
+        x=K_arr,
+        y=sigma_arr,
         origin="lower",  # Sets the origin for correct display of the grid data (volatilty increases along y-axis)
         text_auto=False,
         labels=dict(x="Strike (K)", y="Volatility (\u03C3)", color="Price"),
@@ -447,73 +441,55 @@ def update_param_summary(S: float, T: float, r: float, q: float) -> html.Pre:
 )
 def update_heatmaps(strike_range: list[float], vol_range: list[float], S: float, T: float, r: float,
                     q: float) -> tuple[Figure, Figure, Figure, Figure]:
-    # 1. Construct the json for the C++ backend
-    json: dict[str, Any] = {
-        "k_min": strike_range[0],
-        "k_max": strike_range[1],
-        "sigma_min": vol_range[0],
-        "sigma_max": vol_range[1],
-        "N": GRID_RESOLUTION,
-        "fixed": {
-            "S": S,
-            "r": r,
-            "q": q,
-            "T": T
-        }
-    }
+    # 1. Define the range of values for varying pricing parameters
+    K_arr: np.ndarray = np.linspace(strike_range[0], strike_range[1], GRID_RESOLUTION)
+    sigma_arr: np.ndarray = np.linspace(vol_range[0], vol_range[1], GRID_RESOLUTION)
 
-    # 2. Call the C++ Drogon backend and get all four option grids
+    # 2. Call the C++ pricing engine and get all four option grids
     try:
-        resp: requests.Response = requests.post(SERVER_URL, json=json, timeout=15)
-        resp.raise_for_status()
-
-        # The response is a flat binary buffer of float64 prices
-        flat_grid: np.ndarray = np.frombuffer(resp.content, dtype=np.float64)
-        # Reshape to a 3D array: [Vol_Index, Strike_Index, 4 (number of option types)]
-        full_grid_3d: np.ndarray = flat_grid.reshape((GRID_RESOLUTION, GRID_RESOLUTION, 4))
-
+        full_price_grid: np.ndarray = pricing.price_grids(S, K_arr, r, q, sigma_arr, T)
         # Determine the min/max price globally to unify the color scale across all four charts
-        z_min: float = float(full_grid_3d.min())
-        z_max: float = float(full_grid_3d.max())
+        z_min: float = float(full_price_grid.min())
+        z_max: float = float(full_price_grid.max())
         color_range: list[float] = [z_min, z_max]
 
-    except requests.exceptions.RequestException as e:
-        print(f"Error communicating with backend at {SERVER_URL}: {e}")
+    except Exception as e:
+        print(f"Error communicating with pricing engine: {e}")
         # Return four empty/error figures on failure
         error_figure: Figure = generate_heatmap_figure(
             np.zeros((GRID_RESOLUTION, GRID_RESOLUTION)),
-            strike_range,
-            vol_range,
-            "ERROR: Could not connect to C++ Server."
+            K_arr,
+            sigma_arr,
+            "ERROR: Could not connect to C++ pricing engine."
         )
         return error_figure, error_figure, error_figure, error_figure
 
     # 3. Slice the 3D grid and generate the four Plotly figures
     fig_ac: Figure = generate_heatmap_figure(
-        full_grid_3d[:, :, 0],
-        strike_range,
-        vol_range,
+        full_price_grid[:, :, 0],
+        K_arr,
+        sigma_arr,
         "American Call Option Price",
         color_range
     )
     fig_ap: Figure = generate_heatmap_figure(
-        full_grid_3d[:, :, 1],
-        strike_range,
-        vol_range,
+        full_price_grid[:, :, 1],
+        K_arr,
+        sigma_arr,
         "American Put Option Price",
         color_range
     )
     fig_ec: Figure = generate_heatmap_figure(
-        full_grid_3d[:, :, 2],
-        strike_range,
-        vol_range,
+        full_price_grid[:, :, 2],
+        K_arr,
+        sigma_arr,
         "European Call Option Price",
         color_range
     )
     fig_ep: Figure = generate_heatmap_figure(
-        full_grid_3d[:, :, 3],
-        strike_range,
-        vol_range,
+        full_price_grid[:, :, 3],
+        K_arr,
+        sigma_arr,
         "European Put Option Price",
         color_range
     )

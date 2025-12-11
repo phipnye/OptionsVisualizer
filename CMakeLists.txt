@@ -21,10 +21,10 @@ target_compile_options(StrictFlags INTERFACE
 )
 
 # --- Setup pybind module
+set(PYBIND11_FINDPYTHON ON)
 find_package(pybind11 CONFIG REQUIRED)
-pybind11_add_module(pricing
-    src/module.cpp
-)
+pybind11_add_module(pricing src/module.cpp)
+install(TARGETS pricing DESTINATION .)
 
 # Link the strict compiler flags
 target_link_libraries(pricing PRIVATE StrictFlags)
@@ -61,3 +61,6 @@ target_include_directories(pricing PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
 # Find and link boost
 find_package(Boost REQUIRED COMPONENTS math multiprecision)
 target_link_libraries(pricing PRIVATE Boost::math Boost::multiprecision)
+
+# Link against pybind
+target_link_libraries(pricing PRIVATE pybind11::module)
