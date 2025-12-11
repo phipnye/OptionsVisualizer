@@ -1,5 +1,7 @@
 #pragma once
 
+namespace greeks {
+
 template <typename T>
 struct GreeksResult {
     T price;
@@ -8,3 +10,5 @@ struct GreeksResult {
     T vega;
     T theta;
 };
+
+} // namespace greeks

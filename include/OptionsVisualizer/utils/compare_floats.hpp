@@ -6,8 +6,8 @@
 namespace utils::qc {
 
 /**
- * @brief Return true if the difference between a and b is within epsilon percent of the larger of a and b.
- * @tparam T The floating-point type used (e.g., double, boost::multiprecision::cpp_dec_float_50).
+ * @brief Return true if the difference between a and b is within epsilon percent of the larger of a and b
+ * @tparam T The floating-point type used (e.g., double, boost::multiprecision::cpp_dec_float_50)
  */
 template <typename T>
 bool approxEqualRel(utils::type::ParamT<T> a, utils::type::ParamT<T> b, utils::type::ParamT<T> relEpsilon) {
@@ -17,7 +17,7 @@ bool approxEqualRel(utils::type::ParamT<T> a, utils::type::ParamT<T> b, utils::t
 /**
  * @brief Return true if the difference between a and b is less than or equal to absEpsilon, or within relEpsilon
  * percent of the larger of a and b
- * @tparam T The floating-point type used (e.g., double, boost::multiprecision::cpp_dec_float_50).
+ * @tparam T The floating-point type used (e.g., double, boost::multiprecision::cpp_dec_float_50)
  */
 template <typename T>
 bool approxEqualAbsRel(utils::type::ParamT<T> a, utils::type::ParamT<T> b, utils::type::ParamT<T> absEpsilon,
@@ -31,4 +31,4 @@ bool approxEqualAbsRel(utils::type::ParamT<T> a, utils::type::ParamT<T> b, utils
     return approxEqualRel<T>(a, b, relEpsilon);
 }
 
-} // namespace utils::qc - quality control
+} // namespace utils::qc

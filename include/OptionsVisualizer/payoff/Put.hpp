@@ -8,9 +8,10 @@ namespace Payoff {
 
 template <typename T>
 struct Put : public Payoff<T> {
-    T operator()(utils::type::ParamT<T> S_t, utils::type::ParamT<T> K) const override {
-        static const T zero{0};
-        return generic::max<T, T>(K - S_t, zero);
+    static constexpr T zero{0};
+
+    T operator()(utils::type::ParamT<T> spot, utils::type::ParamT<T> strike) const override {
+        return generic::max<T, T>(strike - spot, zero);
     }
 };
 

@@ -12,11 +12,10 @@
 #include <ranges>
 namespace py = pybind11;
 
-// Generic engine that takes a pricing function
 template <typename T>
 py::array_t<T> priceGrids(T S, const py::array_t<T>& K_arr, T r, T q, const py::array_t<T>& sigma_arr, T T_exp) {
     static_assert(utils::type::isPrimitiveFloat<T>, "Need to update to work with boost types.");
-    static constexpr py::ssize_t elsize{static_cast<py::ssize_t>(sizeof(T))}; // size of numeric type
+    static constexpr py::ssize_t floatSize{static_cast<py::ssize_t>(sizeof(T))};
     const py::ssize_t N{K_arr.size()};
     assert(K_arr.size() == sigma_arr.size() && "Input shapes for volatility and strike prices should be the same.");
 
@@ -26,8 +25,8 @@ py::array_t<T> priceGrids(T S, const py::array_t<T>& K_arr, T r, T q, const py::
 
     // Prepare output array
     const auto range{std::views::iota(py::ssize_t{0}, N)};
-    const py::ssize_t shape[3]{N, N, 4};                             // Won't change across function calls
-    const py::ssize_t stride[3]{N * 4 * elsize, 4 * elsize, elsize}; // Won't change across function calls
+    const py::ssize_t shape[3]{N, N, 4};
+    const py::ssize_t stride[3]{N * 4 * floatSize, 4 * floatSize, floatSize};
     py::array_t<T> result{shape, stride};
     auto out{result.template mutable_unchecked<3>()};
 

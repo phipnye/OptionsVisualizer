@@ -8,7 +8,7 @@ namespace Payoff {
 template <typename T>
 struct Payoff {
     virtual ~Payoff() = default;
-    virtual T operator()(utils::type::ParamT<T> S_t, utils::type::ParamT<T> K) const = 0;
+    virtual T operator()(utils::type::ParamT<T> spot, utils::type::ParamT<T> strike) const = 0;
 };
 
 } // namespace Payoff
