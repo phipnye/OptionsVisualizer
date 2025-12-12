@@ -1,9 +1,12 @@
 {
   "name": "options-visualizer",
-  "version-string": "1.0.0",
+  "version-string": "1.0.3",
   "dependencies": [
     "boost-math",
-    "boost-multiprecision",
+    {
+      "name": "libtorch",
+      "default-features": false
+    },
     "pybind11"
   ],
   "builtin-baseline": "b2c74683ecfd6a8e7d27ffb0df077f66a9339509"

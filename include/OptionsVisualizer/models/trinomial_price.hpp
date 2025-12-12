@@ -1,10 +1,10 @@
 #pragma once
 
-#include "OptionsVisualizer/math/generic_math.hpp"
 #include "OptionsVisualizer/models/constants.hpp"
 #include "OptionsVisualizer/utils/compare_floats.hpp"
-#include "OptionsVisualizer/utils/typing.hpp"
+#include <algorithm>
 #include <cassert>
+#include <cmath>
 #include <cstddef>
 #include <vector>
 
@@ -24,22 +24,21 @@ struct TrinomialParams {
 
 // Helper: sets up multipliers, discounting and probabilities
 template <typename T>
-TrinomialParams<T> setupTrinomial(utils::type::ParamT<T> r, utils::type::ParamT<T> q, utils::type::ParamT<T> sigma,
-                                  utils::type::ParamT<T> tau, std::size_t N) {
+TrinomialParams<T> setupTrinomial(T r, T q, T sigma, T tau, std::size_t N) {
     // Discrete time steps
     const T dTau{tau / static_cast<int>(N)};
 
     // Stock price multipliers for upward and downward moves: u = e^(sigma * sqrt(3dt)); d = 1 / u
-    const T u{generic::exp<T>(sigma * generic::sqrt<T>(3 * dTau))};
+    const T u{std::exp(sigma * std::sqrt(3 * dTau))};
     const T d{1 / u};
 
     // Single-step discount factor: discountFactor = e^(-r * dt)
-    const T discountFactor{generic::exp<T>(-r * dTau)};
+    const T discountFactor{std::exp(-r * dTau)};
 
     // --- Intermediate risk-neutral probability terms (see Hull - Ch.20 (444))
 
     // Drift factor scaling term: sqrt(dt / 12 * sigma^2)
-    const T scalingTerm{generic::sqrt<T>(dTau / (12 * sigma * sigma))};
+    const T scalingTerm{std::sqrt(dTau / (12 * sigma * sigma))};
 
     // Log stock drift: r - q * sigma^2 / 2
     const T logStockDrift{r - q - ((sigma * sigma) / 2)};
@@ -71,20 +70,18 @@ namespace pricing {
 
 /**
  * @brief Prices an American option using the trinomial options pricing model
- * @tparam T The floating-point type used (e.g., double, boost::multiprecision::cpp_dec_float_50)
+ * @tparam T The floating-point type used (e.g., double)
  * @tparam PayoffFn The type of the payoff function (Callable object)
  */
 template <typename T, typename PayoffFn>
-T trinomialPrice(utils::type::ParamT<T> spot, utils::type::ParamT<T> strike, utils::type::ParamT<T> r,
-                 utils::type::ParamT<T> q, utils::type::ParamT<T> sigma, utils::type::ParamT<T> tau,
-                 PayoffFn payoffFun) {
+T trinomialPrice(T spot, T strike, T r, T q, T sigma, T tau, PayoffFn payoffFun) {
     // Setup the function with the parameters we need
     const auto [dTau, u, d, discountFactor, pU, pM, pD]{setupTrinomial<T>(r, q, sigma, tau, constants::trinomialDepth)};
 
     // --- Compute price using backward induction
 
     // Start with the lowest price
-    T expirationSpot{spot * generic::pow<T, T>(d, static_cast<T>(constants::trinomialDepth))};
+    T expirationSpot{spot * std::pow(d, static_cast<T>(constants::trinomialDepth))};
     std::vector<T> optionValues((constants::trinomialDepth * 2) + 1);
 
     // Iterate through all 2N + 1 nodes at maturity
@@ -99,7 +96,7 @@ T trinomialPrice(utils::type::ParamT<T> spot, utils::type::ParamT<T> strike, uti
         // newOptionValues will store the option prices P_i,j
         // The number of nodes at timestep i is (2 * i + 1)
         std::vector<T> newOptionValues((2 * timeStep) + 1);
-        T currentSpot{spot * generic::pow<T, T>(d, static_cast<T>(timeStep))};
+        T currentSpot{spot * std::pow(d, static_cast<T>(timeStep))};
 
         // Node index within the current time step
         for (std::size_t idx{0}, twoN{2 * timeStep}; idx <= twoN; ++idx) {
@@ -115,7 +112,7 @@ T trinomialPrice(utils::type::ParamT<T> spot, utils::type::ParamT<T> strike, uti
             const T intrinsicValue{payoffFun(currentSpot, strike)};
 
             // The option's value is the maximum of immediate exercise (intrinsic) or holding (continuation)
-            newOptionValues[idx] = generic::max<T, T>(intrinsicValue, continuationValue);
+            newOptionValues[idx] = std::max(intrinsicValue, continuationValue);
 
             currentSpot *= u;
         }

@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.22)
-project(PricingModule VERSION 1.0.2 LANGUAGES CXX)
+project(PricingModule VERSION 1.0.3 LANGUAGES CXX)
 
 # --- Set the standard
 set(CMAKE_CXX_STANDARD 20)
@@ -59,8 +59,8 @@ target_link_options(pricing PRIVATE
 target_include_directories(pricing PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
 # Find and link boost
-find_package(Boost REQUIRED COMPONENTS math multiprecision)
-target_link_libraries(pricing PRIVATE Boost::math Boost::multiprecision)
+find_package(Boost REQUIRED COMPONENTS math)
+target_link_libraries(pricing PRIVATE Boost::math)
 
 # Link against pybind
 target_link_libraries(pricing PRIVATE pybind11::module)

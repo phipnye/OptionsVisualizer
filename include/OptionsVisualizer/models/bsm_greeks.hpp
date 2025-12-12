@@ -1,27 +1,25 @@
 #pragma once
 
-#include "OptionsVisualizer/math/generic_math.hpp"
 #include "OptionsVisualizer/models/GreeksResult.hpp"
-#include "OptionsVisualizer/utils/typing.hpp"
 #include <boost/math/distributions/normal.hpp>
+#include <cmath>
 
 namespace greeks {
 
 /**
  * @brief Calculates the price and major greeks (delta, gamma, vega, theta) for a European Call using the
  * Black-Scholes-Merton (BSM) analytical formulas
- * @tparam T The floating-point type used (e.g., double, boost::multiprecision::cpp_dec_float_50)
+ * @tparam T The floating-point type used (e.g., double)
  * @return GreeksResult<T> A struct containing the calculated greek results
  */
 template <typename T>
-GreeksResult<T> bsmCallGreeks(utils::type::ParamT<T> spot, utils::type::ParamT<T> strike, utils::type::ParamT<T> r,
-                              utils::type::ParamT<T> q, utils::type::ParamT<T> sigma, utils::type::ParamT<T> tau) {
+GreeksResult<T> bsmCallGreeks(T spot, T strike, T r, T q, T sigma, T tau) {
     // --- Setup
 
     // BSM intermediate term d1
-    const T sqrtTau{generic::sqrt<T>(tau)};
+    const T sqrtTau{std::sqrt(tau)};
     const T sigmaSqrtTau{sigma * sqrtTau};
-    const T d1{(generic::log<T>(spot / strike) + (r - q + ((sigma * sigma) / 2)) * tau) / sigmaSqrtTau};
+    const T d1{(std::log(spot / strike) + (r - q + ((sigma * sigma) / 2)) * tau) / sigmaSqrtTau};
 
     // BSM intermediate term d2
     const T d2{d1 - sigmaSqrtTau};
@@ -35,8 +33,8 @@ GreeksResult<T> bsmCallGreeks(utils::type::ParamT<T> spot, utils::type::ParamT<T
     const T pdfD1{boost::math::pdf(N01, d1)};
 
     // Constant exponential factors
-    const T expQTau{generic::exp<T>(-q * tau)};
-    const T expRTau{generic::exp<T>(-r * tau)};
+    const T expQTau{std::exp(-q * tau)};
+    const T expRTau{std::exp(-r * tau)};
 
     // --- Calculate results
 
@@ -63,20 +61,19 @@ GreeksResult<T> bsmCallGreeks(utils::type::ParamT<T> spot, utils::type::ParamT<T
 /**
  * @brief Calculates the price and major greeks (delta, gamma, vega, theta) for a European Put using the
  * Black-Scholes-Merton (BSM) analytical formulas
- * @tparam T The floating-point type used (e.g., double, boost::multiprecision::cpp_dec_float_50)
+ * @tparam T The floating-point type used (e.g., double)
  * @return GreeksResult<T> A struct containing the calculated greek results
  */
 template <typename T>
-GreeksResult<T> bsmPutGreeks(utils::type::ParamT<T> spot, utils::type::ParamT<T> strike, utils::type::ParamT<T> r,
-                             utils::type::ParamT<T> q, utils::type::ParamT<T> sigma, utils::type::ParamT<T> tau) {
+GreeksResult<T> bsmPutGreeks(T spot, T strike, T r, T q, T sigma, T tau) {
     // --- Setup
 
     // Retrieve call counterparts
     const auto [callPrice, callDelta, callGamma, callVega, callTheta]{bsmCallGreeks<T>(spot, strike, r, q, sigma, tau)};
 
     // Constant exponential factors
-    const T expQTau{generic::exp<T>(-q * tau)};
-    const T expRTau{generic::exp<T>(-r * tau)};
+    const T expQTau{std::exp(-q * tau)};
+    const T expRTau{std::exp(-r * tau)};
 
     // --- Calculate results
 

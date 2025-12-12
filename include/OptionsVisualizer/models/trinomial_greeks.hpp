@@ -12,14 +12,12 @@ namespace greeks {
 /**
  * @brief Calculates the price and major greeks (delta, gamma, vega, theta) for an American option using the
  * central difference method calculations
- * @tparam T The floating-point type used (e.g., double, boost::multiprecision::cpp_dec_float_50)
+ * @tparam T The floating-point type used (e.g., double)
  * @tparam PayoffFn The type of the payoff function (Callable object)
  * @return GreeksResult<T> A struct containing the calculated greek results
  */
 template <typename T, typename PayoffFn>
-GreeksResult<T> trinomialGreeks(utils::type::ParamT<T> spot, utils::type::ParamT<T> strike, utils::type::ParamT<T> r,
-                                utils::type::ParamT<T> q, utils::type::ParamT<T> sigma, utils::type::ParamT<T> tau,
-                                PayoffFn payoffFun) {
+GreeksResult<T> trinomialGreeks(T spot, T strike, T r, T q, T sigma, T tau, PayoffFn payoffFun) {
     // --- Calculate price, delta, and gamma
     const T epsilonSpot{0.01 * spot}; // 1% shock for delta/gamma
     const T priceBase{pricing::trinomialPrice<T, PayoffFn>(spot, strike, r, q, sigma, tau, payoffFun)};
@@ -49,13 +47,11 @@ GreeksResult<T> trinomialGreeks(utils::type::ParamT<T> spot, utils::type::ParamT
 /**
  * @brief Calculates the price and major greeks (delta, gamma, vega, theta) for an American call using the
  * central difference method calculations
- * @tparam T The floating-point type used (e.g., double, boost::multiprecision::cpp_dec_float_50)
+ * @tparam T The floating-point type used (e.g., double)
  * @return GreeksResult<T> A struct containing the calculated greek results
  */
 template <typename T>
-GreeksResult<T> trinomialCallGreeks(utils::type::ParamT<T> spot, utils::type::ParamT<T> strike,
-                                    utils::type::ParamT<T> r, utils::type::ParamT<T> q, utils::type::ParamT<T> sigma,
-                                    utils::type::ParamT<T> tau) {
+GreeksResult<T> trinomialCallGreeks(T spot, T strike, T r, T q, T sigma, T tau) {
     Payoff::Call<T> payoffFun{};
     return trinomialGreeks<T, Payoff::Call<T>>(spot, strike, r, q, sigma, tau, payoffFun);
 }
@@ -63,12 +59,11 @@ GreeksResult<T> trinomialCallGreeks(utils::type::ParamT<T> spot, utils::type::Pa
 /**
  * @brief Calculates the price and major greeks (delta, gamma, vega, theta) for an American put using the
  * central difference method calculations
- * @tparam T The floating-point type used (e.g., double, boost::multiprecision::cpp_dec_float_50)
+ * @tparam T The floating-point type used (e.g., double)
  * @return GreeksResult<T> A struct containing the calculated greek results
  */
 template <typename T>
-GreeksResult<T> trinomialPutGreeks(utils::type::ParamT<T> spot, utils::type::ParamT<T> strike, utils::type::ParamT<T> r,
-                                   utils::type::ParamT<T> q, utils::type::ParamT<T> sigma, utils::type::ParamT<T> tau) {
+GreeksResult<T> trinomialPutGreeks(T spot, T strike, T r, T q, T sigma, T tau) {
     Payoff::Put<T> payoffFun{};
     return trinomialGreeks<T, Payoff::Put<T>>(spot, strike, r, q, sigma, tau, payoffFun);
 }
