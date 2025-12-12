@@ -19,7 +19,7 @@ namespace grid {
 template <typename T>
 py::array_t<T> calculateGreeksGrid(T spot, py::array_t<T, py::array::c_style> strikesArr, T r, T q,
                                    py::array_t<T, py::array::c_style> sigmaArr, T tau) {
-    static_assert(utils::type::isPrimitiveFloat<T>, "Need to update to work with boost types.");
+    static_assert(utils::type::isPrimitiveFloat<T>, "Numpy arrays cannot store boost::multiprecision types.");
     assert(strikesArr.ndim() == 1 && sigmaArr.ndim() == 1 && "Unexpected number of dimensions.");
     const std::size_t N{static_cast<std::size_t>(strikesArr.shape(0))};
     

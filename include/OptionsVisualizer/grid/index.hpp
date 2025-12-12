@@ -6,15 +6,15 @@ namespace py = pybind11;
 
 namespace grid::index {
 
-enum class OptionType : std::size_t { AmerCall = 0, AmerPut = 1, EuroCall = 2, EuroPut = 3 };
 enum class GreekType : std::size_t { Price = 0, Delta = 1, Gamma = 2, Vega = 3, Theta = 4 };
+enum class OptionType : std::size_t { AmerCall = 0, AmerPut = 1, EuroCall = 2, EuroPut = 3 };
 
-constexpr std::size_t idx(OptionType t) noexcept {
+consteval std::size_t idx(GreekType t) noexcept {
     return static_cast<std::size_t>(t);
 }
 
-constexpr std::size_t idx(GreekType g) noexcept {
-    return static_cast<std::size_t>(g);
+constexpr std::size_t idx(OptionType t) noexcept {
+    return static_cast<std::size_t>(t);
 }
 
 /**
@@ -47,7 +47,7 @@ void writeGreeksToResult(std::vector<T>& result, std::size_t N, std::size_t sigm
     result[base + DELTA] = greeks.delta;
     result[base + GAMMA] = greeks.gamma;
     result[base + VEGA] = greeks.vega;
-    result[base + THETA] = greeks.theta;
+    result[base + THETA] = -greeks.theta; // report -theta for "positive" time decay
 }
 
 } // namespace grid::index

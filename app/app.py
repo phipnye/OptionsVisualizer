@@ -53,7 +53,7 @@ APP.layout: html.Div = html.Div(  # type: ignore
         ),
 
         # Cache greek results (prevent re-computing when switiching greek type for the same model parameters)
-        dash.dcc.Store(id='greeks_cache', storage_type='memory'),
+        dash.dcc.Store(id="greeks_cache", storage_type="memory"),
     ]
 )
 
@@ -150,9 +150,8 @@ def compute_greeks_and_cache(
     r: float,
     q: float,
 ) -> Optional[str]:
-    print("Computing greeks!")
     inputs_tuple: tuple = (tuple(strike_range), tuple(sigma_range), S, T, r, q)
-    cache_key: str = hashlib.sha256(str(inputs_tuple).encode('utf-8')).hexdigest()
+    cache_key: str = hashlib.sha256(str(inputs_tuple).encode("utf-8")).hexdigest()
     cached_greeks: Optional[np.ndarray[np.float64]] = CACHE.get(cache_key)
 
     if cached_greeks is not None:
@@ -193,7 +192,6 @@ def update_heatmaps(
     strike_range: list[float],
     sigma_range: list[float],
 ) -> tuple[Figure, Figure, Figure, Figure]:
-    print("Updating heatmaps!")
     # Define the range of values for varying pricing parameters (needed for axis labels/error plotting)
     strike_arr: np.ndarray[np.float64] = np.linspace(strike_range[0], strike_range[1], GRID_RESOLUTION)
     sigma_arr: np.ndarray[np.float64] = np.linspace(sigma_range[0], sigma_range[1], GRID_RESOLUTION)

@@ -29,7 +29,7 @@ GreeksResult<T> bsmCallGreeks(utils::type::ParamT<T> spot, utils::type::ParamT<T
     // Initialize the standard normal distribution N(0, 1)
     static const boost::math::normal_distribution<T> N01{0.0, 1.0};
 
-    // Calculate the CDF (N(d1), N(d2)) and PDF (phi(d1)) values
+    // Calculate the CDF (N(d1), N(d2)) and PDF (N'(d1)) values
     const T cdfD1{boost::math::cdf(N01, d1)};
     const T cdfD2{boost::math::cdf(N01, d2)};
     const T pdfD1{boost::math::pdf(N01, d1)};
@@ -43,18 +43,19 @@ GreeksResult<T> bsmCallGreeks(utils::type::ParamT<T> spot, utils::type::ParamT<T
     // price = (S * e^(-qT) * N(d1)) - (K * e^(-rT) * N(d2))
     const T price{(spot * expQTau * cdfD1) - (strike * expRTau * cdfD2)};
 
+    // See Hull (ch. 18 - 398)
     // delta = e^(-qT) * N(d1)
     const T delta{expQTau * cdfD1};
 
-    // gamma = (e^(-qT) * phi(d1)) / (S * sigma * sqrt(T))
-    const T gamma{(expQTau * pdfD1) / (spot * sigmaSqrtTau)};
+    // gamma = (N'(d1) * e^(-qT)) / (S * sigma * sqrt(T))
+    const T gamma{(pdfD1 * expQTau) / (spot * sigmaSqrtTau)};
 
-    // vega = S * e^(-qT) * phi(d1) * sqrt(T)
-    const T vega{spot * expQTau * pdfD1 * sqrtTau};
+    // vega = S * sqrt(T) * N'(d1) * e^(-qT)
+    const T vega{spot * sqrtTau * pdfD1 * expQTau};
 
-    // -theta = (S * e^(-qT) * phi(d1) * sigma) / (2 * sqrt(T)) - (r * K * e^(-rT) * N(d2)) + (q * S * e^(-qT) * N(d1))
-    const T theta{-(((-spot * expQTau * pdfD1 * sigma) / (2 * sqrtTau)) - (r * strike * expRTau * cdfD2) +
-                    (q * spot * expQTau * cdfD1))}; // generally defined as negative partial
+    // theta = (-S * N'(d1) * sigma * e^(-qT) / (2 * sqrt(T))) + (q * S * N(d1) * e^(-qT)) - (r * K * e^(-rT) * N(d2))
+    const T theta{(-spot * pdfD1 * sigma * expQTau / (2 * sqrtTau)) + (q * spot * cdfD1 * expQTau) -
+                  (r * strike * expRTau * cdfD2)};
 
     return GreeksResult<T>{.price{price}, .delta{delta}, .gamma{gamma}, .vega{vega}, .theta{theta}};
 }
@@ -82,11 +83,18 @@ GreeksResult<T> bsmPutGreeks(utils::type::ParamT<T> spot, utils::type::ParamT<T>
     // Put-Call Parity: P = C - S * e^(-qT) + K * e^(-rT)
     const T price{callPrice - (spot * expQTau) + (strike * expRTau)};
 
-    // delta_put = delta_call - e^(-qT)
+    // See Hull (ch. 18 - 398)
+    // delta_put = e^(-qT) * (N(d1) - 1) = (e^(-qT) * N(d1)) - e^(-qT) = delta_call - e^(-qT)
     const T delta{callDelta - expQTau};
 
-    // -theta = -theta_call - r * K * e^(-rT) + q * S * e^(-qT)
-    const T theta{callTheta + (r * strike * expRTau) - (q * spot * expQTau)};
+    /*
+       theta_call - theta_put = -d/dt[C - P]
+                              = -d/dt[S * e^(-qT) - K * e^(-rT)]
+                              = S * q * e^(-qT) - K * r * e^(-rT)
+
+        -> theta_put = theta_call - S * q * e^(-qT) + K * r * e^(-rT)
+    */
+    const T theta{callTheta - (q * spot * expQTau) + (r * strike * expRTau)};
 
     return GreeksResult<T>{.price{price}, .delta{delta}, .gamma{callGamma}, .vega{callVega}, .theta{theta}};
 }

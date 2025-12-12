@@ -31,7 +31,7 @@ GreeksResult<T> trinomialGreeks(utils::type::ParamT<T> spot, utils::type::ParamT
     const T gamma{generic::cmdSecondOrder<T>(priceSpotLo, priceBase, priceSpotHi, epsilonSpot)};
 
     // --- Calculate vega
-    static constexpr T epsilonSigma{0.0001}; // 0.01% shock for vega
+    static const T epsilonSigma{0.0001}; // 0.01% shock for vega
     const T priceSigmaLo{
         pricing::trinomialPrice<T, PayoffFn>(spot, strike, r, q, sigma - epsilonSigma, tau, payoffFun)};
     const T priceSigmaHi{
@@ -39,7 +39,7 @@ GreeksResult<T> trinomialGreeks(utils::type::ParamT<T> spot, utils::type::ParamT
     const T vega{generic::cdmFirstOrder<T>(priceSigmaLo, priceSigmaHi, epsilonSigma)};
 
     // --- Calculate theta
-    static constexpr T epsilonTau{static_cast<T>(1) / 365}; // 1 day shock for theta
+    static const T epsilonTau{static_cast<T>(1) / 365}; // 1 day shock for theta
     const T priceTauLo{pricing::trinomialPrice<T, PayoffFn>(spot, strike, r, q, sigma, tau - epsilonTau, payoffFun)};
     const T priceTauHi{pricing::trinomialPrice<T, PayoffFn>(spot, strike, r, q, sigma, tau + epsilonTau, payoffFun)};
     const T theta{

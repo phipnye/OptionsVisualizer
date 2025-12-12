@@ -7,7 +7,7 @@ namespace Payoff {
 
 template <typename T>
 struct Put {
-    static constexpr T zero{0};
+    static inline T zero{0};
 
     T operator()(utils::type::ParamT<T> spot, utils::type::ParamT<T> strike) const {
         return generic::max<T, T>(strike - spot, zero);
