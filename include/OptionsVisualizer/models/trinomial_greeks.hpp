@@ -42,8 +42,7 @@ GreeksResult<T> trinomialGreeks(utils::type::ParamT<T> spot, utils::type::ParamT
     static const T epsilonTau{static_cast<T>(1) / 365}; // 1 day shock for theta
     const T priceTauLo{pricing::trinomialPrice<T, PayoffFn>(spot, strike, r, q, sigma, tau - epsilonTau, payoffFun)};
     const T priceTauHi{pricing::trinomialPrice<T, PayoffFn>(spot, strike, r, q, sigma, tau + epsilonTau, payoffFun)};
-    const T theta{
-        -generic::cdmFirstOrder<T>(priceTauLo, priceTauHi, epsilonTau)}; // generally defined as negative partial
+    const T theta{-generic::cdmFirstOrder<T>(priceTauLo, priceTauHi, epsilonTau)};
     return GreeksResult<T>{.price{priceBase}, .delta{delta}, .gamma{gamma}, .vega{vega}, .theta{theta}};
 }
 

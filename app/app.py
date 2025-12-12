@@ -165,6 +165,10 @@ def compute_greeks_and_cache(
     try:
         # pricing.calculate_greeks_grid returns a flat Python list of doubles
         full_greeks_array: np.ndarray[np.float64] = pricing.calculate_greeks_grid(S, strike_arr, r, q, sigma_arr, T)
+
+        if full_greeks_array.dtype != np.float64:
+            full_greeks_array = full_greeks_array.astype(np.float64)
+
         CACHE.set(cache_key, full_greeks_array)
         return cache_key
 
