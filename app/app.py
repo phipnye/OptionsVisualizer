@@ -1,6 +1,8 @@
 import dash
 import pricing
 import numpy as np
+import hashlib
+from flask_caching import Cache
 from constants import (
     GREEK_SYMBOLS,
     GREEK_TYPES,
@@ -29,6 +31,8 @@ APP: dash.Dash = dash.Dash(
     __name__,
     external_stylesheets=["https://cdn.jsdelivr.net/npm/bootswatch@5.3.3/dist/darkly/bootstrap.min.css"]
 )
+
+CACHE: Cache = Cache(APP.server, config={"CACHE_TYPE": "simple", "CACHE_DEFAULT_TIMEOUT": 3600})
 
 # --- Layout definition
 APP.layout: html.Div = html.Div(  # type: ignore
@@ -145,7 +149,15 @@ def compute_greeks_and_cache(
     T: float,
     r: float,
     q: float,
-) -> Optional[list[float]]:
+) -> Optional[str]:
+    print("Computing greeks!")
+    inputs_tuple: tuple = (tuple(strike_range), tuple(sigma_range), S, T, r, q)
+    cache_key: str = hashlib.sha256(str(inputs_tuple).encode('utf-8')).hexdigest()
+    cached_greeks: Optional[np.ndarray[np.float64]] = CACHE.get(cache_key)
+
+    if cached_greeks is not None:
+        return cache_key
+
     # Define the range of values for varying pricing parameters
     strike_arr: np.ndarray[np.float64] = np.linspace(strike_range[0], strike_range[1], GRID_RESOLUTION)
     sigma_arr: np.ndarray[np.float64] = np.linspace(sigma_range[0], sigma_range[1], GRID_RESOLUTION)
@@ -153,8 +165,9 @@ def compute_greeks_and_cache(
     # Call the C++ pricing engine
     try:
         # pricing.calculate_greeks_grid returns a flat Python list of doubles
-        full_greeks_list: np.ndarray[np.float64] = pricing.calculate_greeks_grid(S, strike_arr, r, q, sigma_arr, T)
-        return full_greeks_list
+        full_greeks_array: np.ndarray[np.float64] = pricing.calculate_greeks_grid(S, strike_arr, r, q, sigma_arr, T)
+        CACHE.set(cache_key, full_greeks_array)
+        return cache_key
 
     except Exception as e:
         print(f"Error communicating with pricing engine: {e}")
@@ -176,16 +189,21 @@ def compute_greeks_and_cache(
 )
 def update_heatmaps(
     greek_idx: int,
-    full_greeks_list: list[float] | None,
+    full_greeks_cache_key: str | None,
     strike_range: list[float],
     sigma_range: list[float],
 ) -> tuple[Figure, Figure, Figure, Figure]:
+    print("Updating heatmaps!")
     # Define the range of values for varying pricing parameters (needed for axis labels/error plotting)
     strike_arr: np.ndarray[np.float64] = np.linspace(strike_range[0], strike_range[1], GRID_RESOLUTION)
     sigma_arr: np.ndarray[np.float64] = np.linspace(sigma_range[0], sigma_range[1], GRID_RESOLUTION)
+    full_greeks_array: Optional[np.ndarray[np.float64]] = None
+
+    if full_greeks_cache_key is not None:
+        full_greeks_array = CACHE.get(full_greeks_cache_key)
 
     # --- Check if the cached data is available
-    if full_greeks_list is None:
+    if full_greeks_array is None:
         # Return four error figures
         error_figure: Figure = generate_heatmap_figure(
             np.zeros((GRID_RESOLUTION, GRID_RESOLUTION)),
@@ -200,11 +218,11 @@ def update_heatmaps(
     try:
         data_size: int = GRID_RESOLUTION * GRID_RESOLUTION * len(OPTION_TYPES) * len(GREEK_TYPES)
 
-        if len(full_greeks_list) != data_size:
+        if full_greeks_array.size != data_size:
             raise ValueError("Cached list size does not match expected grid dimensions.")
 
         full_greeks_grid: np.ndarray[np.float64] = (
-            np.array(full_greeks_list).reshape(GRID_RESOLUTION, GRID_RESOLUTION, len(OPTION_TYPES), len(GREEK_TYPES))
+            full_greeks_array.reshape(GRID_RESOLUTION, GRID_RESOLUTION, len(OPTION_TYPES), len(GREEK_TYPES))
         )
 
     except Exception as e:
