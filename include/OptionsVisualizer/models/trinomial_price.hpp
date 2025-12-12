@@ -2,9 +2,6 @@
 
 #include "OptionsVisualizer/math/generic_math.hpp"
 #include "OptionsVisualizer/models/constants.hpp"
-#include "OptionsVisualizer/payoff/Call.hpp"
-#include "OptionsVisualizer/payoff/Payoff.hpp"
-#include "OptionsVisualizer/payoff/Put.hpp"
 #include "OptionsVisualizer/utils/compare_floats.hpp"
 #include "OptionsVisualizer/utils/typing.hpp"
 #include <cassert>
@@ -75,26 +72,26 @@ namespace pricing {
 /**
  * @brief Prices an American option using the trinomial options pricing model
  * @tparam T The floating-point type used (e.g., double, boost::multiprecision::cpp_dec_float_50)
- * @param payoffFun The type of the payoff function (Callable object)
+ * @tparam PayoffFn The type of the payoff function (Callable object)
  */
-template <typename T>
+template <typename T, typename PayoffFn>
 T trinomialPrice(utils::type::ParamT<T> spot, utils::type::ParamT<T> strike, utils::type::ParamT<T> r,
                  utils::type::ParamT<T> q, utils::type::ParamT<T> sigma, utils::type::ParamT<T> tau,
-                 Payoff::Payoff<T> payoffFun) {
+                 PayoffFn payoffFun) {
     // Setup the function with the parameters we need
-    auto [dTau, u, d, discountFactor, pU, pM, pD]{setupTrinomial<T>(r, q, sigma, tau, constants::trinomialDepth)};
+    const auto [dTau, u, d, discountFactor, pU, pM, pD]{setupTrinomial<T>(r, q, sigma, tau, constants::trinomialDepth)};
 
     // --- Compute price using backward induction
 
     // Start with the lowest price
-    T spotExpiration{spot * generic::pow<T, T>(d, static_cast<T>(constants::trinomialDepth))};
+    T expirationSpot{spot * generic::pow<T, T>(d, static_cast<T>(constants::trinomialDepth))};
     std::vector<T> optionValues((constants::trinomialDepth * 2) + 1);
 
     // Iterate through all 2N + 1 nodes at maturity
     for (std::size_t idx{0}, twoN{2 * constants::trinomialDepth}; idx <= twoN; ++idx) {
         // At maturtity, there's only intrinsic value, no continuation value
-        optionValues[idx] = payoffFun(spotExpiration, strike);
-        spotExpiration *= u;
+        optionValues[idx] = payoffFun(expirationSpot, strike);
+        expirationSpot *= u;
     }
 
     // Iterate through the remaining time steps

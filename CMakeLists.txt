@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.22)
-project(PricingModule VERSION 1.0.1 LANGUAGES CXX)
+project(PricingModule VERSION 1.0.2 LANGUAGES CXX)
 
 # --- Set the standard
 set(CMAKE_CXX_STANDARD 20)

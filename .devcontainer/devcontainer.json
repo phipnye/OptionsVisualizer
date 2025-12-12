@@ -23,6 +23,9 @@
                 "ms-toolsai.vscode-jupyter-slideshow"
             ],
             "settings": {
+                "chat.commandCenter.enabled": false,
+                "chat.agent.enabled": false,
+                "chat.disableAIFeatures": true,
                 "cmake.configureArgs": [
                     "-DCMAKE_TOOLCHAIN_FILE=/usr/local/vcpkg/scripts/buildsystems/vcpkg.cmake",
                     "-DCMAKE_CXX_COMPILER=/usr/bin/g++"
@@ -31,7 +34,9 @@
                     "CXX": "/usr/bin/g++"
                 },
                 "cmake.configureOnEdit": false,
-                "python.defaultInterpreterPath": ".venv/bin/python"
+                "editor.aiStats.enabled": false,
+                "python.defaultInterpreterPath": ".venv/bin/python3",
+                "workbench.settings.showAISearchToggle": false,
             }
         }
     },

@@ -1,7 +1,7 @@
 #pragma once
 
 #include "OptionsVisualizer/math/generic_math.hpp"
-#include "OptionsVisualizer/models/greeks_result.hpp"
+#include "OptionsVisualizer/models/GreeksResult.hpp"
 #include "OptionsVisualizer/utils/typing.hpp"
 #include <boost/math/distributions/normal.hpp>
 
