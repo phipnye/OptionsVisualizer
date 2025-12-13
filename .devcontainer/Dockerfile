@@ -1,18 +1,23 @@
-FROM mcr.microsoft.com/devcontainers/cpp:1-ubuntu-24.04
+# Referencing the base image defined in your devcontainer.json
+ARG BASE_IMAGE="mcr.microsoft.com/devcontainers/cpp:ubuntu-24.04"
+FROM ${BASE_IMAGE}
 
-ARG REINSTALL_CMAKE_VERSION_FROM_SOURCE="none"
+# LibTorch Installation Arguments
+ARG LIBTORCH_VERSION="2.3.1"
+ARG LIBTORCH_FLAVOR="cpu"
+ARG LIBTORCH_FILENAME="libtorch-cxx11-abi-shared-with-deps-${LIBTORCH_VERSION}%2B${LIBTORCH_FLAVOR}.zip"
+ARG LIBTORCH_URL="https://download.pytorch.org/libtorch/${LIBTORCH_FLAVOR}/${LIBTORCH_FILENAME}"
 
-# Optionally install the cmake for vcpkg
-COPY ./reinstall-cmake.sh /tmp/
+# Install System Dependencies and LibTorch
+RUN set -ex; \
+    sudo apt-get update && sudo apt-get install -y --no-install-recommends \
+        autoconf autoconf-archive automake libtool wget unzip; \
+    wget -q "${LIBTORCH_URL}" -O /tmp/libtorch.zip; \
+    mkdir -p /usr/local/libtorch; \
+    unzip -q /tmp/libtorch.zip -d /usr/local/libtorch; \
+    rm /tmp/libtorch.zip; \
+    sudo apt-get clean && rm -rf /var/lib/apt/lists/*
 
-RUN if [ "${REINSTALL_CMAKE_VERSION_FROM_SOURCE}" != "none" ]; then \
-        chmod +x /tmp/reinstall-cmake.sh && /tmp/reinstall-cmake.sh ${REINSTALL_CMAKE_VERSION_FROM_SOURCE}; \
-    fi \
-    && rm -f /tmp/reinstall-cmake.sh
-
-# [Optional] Uncomment this section to install additional vcpkg ports.
-# RUN su vscode -c "${VCPKG_ROOT}/vcpkg install <your-port-name-here>"
-
-# [Optional] Uncomment this section to install additional packages.
-# RUN apt-get update && export DEBIAN_FRONTEND=noninteractive \
-#     && apt-get -y install --no-install-recommends <your-package-list-here>
+# Environment Variables (for CMake)
+ENV Torch_DIR=/usr/local/libtorch/libtorch/share/cmake/Torch
+ENV LD_LIBRARY_PATH=/usr/local/libtorch/libtorch/lib:$LD_LIBRARY_PATH

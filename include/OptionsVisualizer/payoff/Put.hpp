@@ -5,10 +5,10 @@
 namespace Payoff {
 
 template <typename T>
-struct Call {
+struct Put {
     static constexpr T zero{0};
 
-    T operator()(utils::type::ParamT<T> spot, utils::type::ParamT<T> strike) const {
+    T operator()(T spot, T strike) const {
         return std::max(strike - spot, zero);
     }
 };

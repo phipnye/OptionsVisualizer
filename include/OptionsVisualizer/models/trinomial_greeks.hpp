@@ -5,7 +5,6 @@
 #include "OptionsVisualizer/models/trinomial_price.hpp"
 #include "OptionsVisualizer/payoff/Call.hpp"
 #include "OptionsVisualizer/payoff/Put.hpp"
-#include "OptionsVisualizer/utils/typing.hpp"
 
 namespace greeks {
 
