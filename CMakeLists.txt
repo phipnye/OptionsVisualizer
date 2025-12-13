@@ -58,10 +58,6 @@ target_link_options(pricing PRIVATE
 # Include directories
 target_include_directories(pricing PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
-# Find and link boost
-find_package(Boost REQUIRED COMPONENTS math)
-target_link_libraries(pricing PRIVATE Boost::math)
-
 # Find and link against libtorch
 find_package(Torch REQUIRED)
 target_link_libraries(pricing PRIVATE ${TORCH_LIBRARIES})

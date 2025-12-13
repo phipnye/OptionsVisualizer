@@ -1,127 +1,127 @@
-#pragma once
-
 #include "OptionsVisualizer/models/constants.hpp"
-#include "OptionsVisualizer/utils/compare_floats.hpp"
-#include <algorithm>
-#include <cassert>
-#include <cmath>
-#include <cstddef>
-#include <vector>
+#include <torch/torch.h>
 
-namespace {
+namespace pricing {
 
-// Parameter bundle for the trinomial model
-template <typename T>
 struct TrinomialParams {
-    T dTau;
-    T u;
-    T d;
-    T discountFactor;
-    T pU;
-    T pM;
-    T pD;
+    torch::Tensor dTau;
+    torch::Tensor u;
+    torch::Tensor d;
+    torch::Tensor discountFactor;
+    torch::Tensor pU;
+    torch::Tensor pM;
+    torch::Tensor pD;
+
+    TrinomialParams(torch::Tensor&& dTau_, torch::Tensor&& u_, torch::Tensor&& d_, torch::Tensor&& discountFactor_,
+                    torch::Tensor&& pU_, torch::Tensor&& pM_, torch::Tensor&& pD_)
+        : dTau{std::move(dTau_)}, u{std::move(u_)}, d{std::move(d_)}, discountFactor{std::move(discountFactor_)},
+          pU{std::move(pU_)}, pM{std::move(pM_)}, pD{std::move(pD_)} {}
 };
 
-// Helper: sets up multipliers, discounting and probabilities
-template <typename T>
-TrinomialParams<T> setupTrinomial(T r, T q, T sigma, T tau, std::size_t N) {
+TrinomialParams setupTrinomial(const torch::Tensor& r, const torch::Tensor& q, const torch::Tensor& sigmas,
+                               const torch::Tensor& tau) {
     // Discrete time steps
-    const T dTau{tau / static_cast<int>(N)};
+    torch::Tensor dTau{tau / constants::trinomialDepth};
 
-    // Stock price multipliers for upward and downward moves: u = e^(sigma * sqrt(3dt)); d = 1 / u
-    const T u{std::exp(sigma * std::sqrt(3 * dTau))};
-    const T d{1 / u};
+    // Stock price multipliers: u = e^(sigma * sqrt(3dt)); d = 1 / u
+    torch::Tensor u{torch::exp(sigmas * torch::sqrt(3.0 * dTau))};
+    torch::Tensor d{torch::reciprocal(u)};
 
     // Single-step discount factor: discountFactor = e^(-r * dt)
-    const T discountFactor{std::exp(-r * dTau)};
+    torch::Tensor discountFactor{torch::exp(-r * dTau)};
 
     // --- Intermediate risk-neutral probability terms (see Hull - Ch.20 (444))
 
     // Drift factor scaling term: sqrt(dt / 12 * sigma^2)
-    const T scalingTerm{std::sqrt(dTau / (12 * sigma * sigma))};
+    torch::Tensor scalingTerm{torch::sqrt(dTau / (12.0 * sigmas.pow(2)))};
 
     // Log stock drift: r - q * sigma^2 / 2
-    const T logStockDrift{r - q - ((sigma * sigma) / 2)};
+    torch::Tensor logStockDrift{r - q - (sigmas.pow(2) / 2.0)};
 
     // Risk-neutral drift factor
-    const T driftFactor{scalingTerm * logStockDrift};
+    torch::Tensor driftFactor{scalingTerm * logStockDrift};
 
     // --- Risk-neutral probabilities
 
     // Probability of upward price movement: p_u = sqrt(dt / 12 * sigma^2) * (r - q * sigma^2 / 2) + 1 / 6
-    const T pU{driftFactor + static_cast<T>(1) / 6};
+    torch::Tensor pU{driftFactor + (1.0 / 6.0)};
 
     // Probability of downward price movement: p_d = -sqrt(dt / 12 * sigma^2) * (r - q * sigma^2 / 2) + 1 / 6
-    const T pD{-driftFactor + static_cast<T>(1) / 6};
+    torch::Tensor pD{-driftFactor + 1.0 / 6.0};
 
     // p_m = 1 - p_u - p_d approx= 2/3
-    // Middle-branch probability ensuring total probability = 1
-    const T pM{1 - pU - pD};
+    torch::Tensor pM{1.0 - pU - pD};
 
-    // Confirm p_m == 2/3
-    assert(utils::qc::approxEqualAbsRel<T>(pM, static_cast<T>(2) / 3, static_cast<T>(1e-8), static_cast<T>(1e-8)));
-
-    return TrinomialParams<T>{.dTau{dTau}, .u{u}, .d{d}, .discountFactor{discountFactor}, .pU{pU}, .pM{pM}, .pD{pD}};
+    return TrinomialParams{std::move(dTau), std::move(u),  std::move(d), std::move(discountFactor),
+                           std::move(pU),   std::move(pM), std::move(pD)};
 }
 
-} // namespace
-
-namespace pricing {
-
 /**
- * @brief Prices an American option using the trinomial options pricing model
- * @tparam T The floating-point type used (e.g., double)
- * @tparam PayoffFn The type of the payoff function (Callable object)
+ * @brief Prices an American option using the trinomial model with LibTorch Tensors.
  */
-template <typename T, typename PayoffFn>
-T trinomialPrice(T spot, T strike, T r, T q, T sigma, T tau, PayoffFn payoffFun) {
-    // Setup the function with the parameters we need
-    const auto [dTau, u, d, discountFactor, pU, pM, pD]{setupTrinomial<T>(r, q, sigma, tau, constants::trinomialDepth)};
+torch::Tensor trinomialPrice(const torch::Tensor& spot, const torch::Tensor& strikes, const torch::Tensor& r,
+                             const torch::Tensor& q, const torch::Tensor& sigmas, const torch::Tensor& tau,
+                             bool isCall) {
+    // Get setup terms
+    const auto [dTau, u, d, discountFactor, pU, pM, pD]{setupTrinomial(r, q, sigmas, tau)};
+
+    // Broadcast strikes x sigmas
+    const torch::Tensor strikesExpanded{strikes.unsqueeze(1)}; // (N, 1)
+    const torch::Tensor sigmasExpanded{sigmas.unsqueeze(0)};   // (1, N)
+    const torch::Tensor sigmaGrid{sigmasExpanded.expand({strikes.size(0), sigmas.size(0)})};
+    const torch::Tensor strikeGrid{strikesExpanded.expand_as(sigmaGrid)};
 
     // --- Compute price using backward induction
 
-    // Start with the lowest price
-    T expirationSpot{spot * std::pow(d, static_cast<T>(constants::trinomialDepth))};
-    std::vector<T> optionValues((constants::trinomialDepth * 2) + 1);
+    // Calculate option values at expiration
+    std::int64_t numNodes{2 * constants::trinomialDepth - 1};
+    torch::Tensor exponents{torch::arange(numNodes, torch::kInt)}; // [0, 1, 2, ... , 2 * depth]
+    torch::Tensor expirationSpot{spot * torch::pow(d, constants::trinomialDepth - exponents) *
+                                 torch::pow(u, exponents)};
+    torch::Tensor optionValues{expirationSpot.view({numNodes, 1, 1}) -
+                               strikes.view({1, -1, 1})}; // shape: node x strike x sigma
 
-    // Iterate through all 2N + 1 nodes at maturity
-    for (std::size_t idx{0}, twoN{2 * constants::trinomialDepth}; idx <= twoN; ++idx) {
-        // At maturtity, there's only intrinsic value, no continuation value
-        optionValues[idx] = payoffFun(expirationSpot, strike);
-        expirationSpot *= u;
+    // Calculate payoff at expiration (American option: intrinsic value only)
+    if (isCall) {
+        optionValues = torch::relu(optionValues); // call: max(S - K, 0)
+    } else {
+        optionValues = torch::relu(-optionValues); // put: max(K - S, 0)
     }
 
-    // Iterate through the remaining time steps
-    for (std::size_t timeStep{constants::trinomialDepth}; timeStep-- > 0;) {
-        // newOptionValues will store the option prices P_i,j
-        // The number of nodes at timestep i is (2 * i + 1)
-        std::vector<T> newOptionValues((2 * timeStep) + 1);
-        T currentSpot{spot * std::pow(d, static_cast<T>(timeStep))};
+    // Backward induction
+    for (std::int64_t t{constants::trinomialDepth - 1}; t > -1; --t) {
+        std::int64_t numNodesAtT{2 * t + 1};
 
-        // Node index within the current time step
-        for (std::size_t idx{0}, twoN{2 * timeStep}; idx <= twoN; ++idx) {
-            // P_i+1,j+2 is the value from the up path
-            // P_i+1,j+1 is the value from the middle path
-            // P_i+1,j is the value from the down path
-            const T EV{(pU * optionValues[idx + 2]) + (pM * optionValues[idx + 1]) + (pD * optionValues[idx])};
+        // Compute spot prices at this timestep
+        torch::Tensor exponentsT{torch::arange(numNodesAtT, torch::kInt)};
+        torch::Tensor spotsT{spot * torch::pow(d, t - exponentsT) * torch::pow(u, exponentsT)};
 
-            // Calculate the continuation value
-            const T continuationValue{EV * discountFactor};
+        // Select the relevant slice of the next timestep's optionValues
+        torch::Tensor nextOptionValues{optionValues.slice(0, 0, numNodesAtT + 2)}; // up, mid, down
 
-            // Calculate the intrinsic value
-            const T intrinsicValue{payoffFun(currentSpot, strike)};
+        // Compute expected value using trinomial probabilities
+        torch::Tensor EV{pU * nextOptionValues.slice(0, 2, numNodesAtT + 2) +
+                         pM * nextOptionValues.slice(0, 1, numNodesAtT + 1) +
+                         pD * nextOptionValues.slice(0, 0, numNodesAtT)};
 
-            // The option's value is the maximum of immediate exercise (intrinsic) or holding (continuation)
-            newOptionValues[idx] = std::max(intrinsicValue, continuationValue);
+        // Discount back one timestep
+        torch::Tensor continuationValue{discountFactor * EV};
 
-            currentSpot *= u;
+        // Compute intrinsic value
+        torch::Tensor intrinsicValue;
+
+        if (isCall) {
+            intrinsicValue = torch::relu(spotsT.view({numNodesAtT, 1, 1}) - strikeGrid.slice(0, 0, strikes.size(0)));
+        } else {
+            intrinsicValue = torch::relu(strikeGrid.slice(0, 0, strikes.size(0)) - spotsT.view({numNodesAtT, 1, 1}));
         }
 
-        optionValues = std::move(newOptionValues);
+        // Update optionValues at this timestep
+        optionValues = torch::max(intrinsicValue, continuationValue);
     }
 
-    assert(optionValues.size() == 1);
-    return optionValues[0];
+    // After backward induction, optionValues has shape (1, strikes.size(), sigmas.size())
+    return optionValues.squeeze(0); // remove the singleton node dimension
 }
 
 } // namespace pricing

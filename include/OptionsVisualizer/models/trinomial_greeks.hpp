@@ -1,70 +1,55 @@
 #pragma once
 
-#include "OptionsVisualizer/math/central_difference.hpp"
 #include "OptionsVisualizer/models/GreeksResult.hpp"
 #include "OptionsVisualizer/models/trinomial_price.hpp"
-#include "OptionsVisualizer/payoff/Call.hpp"
-#include "OptionsVisualizer/payoff/Put.hpp"
+#include <torch/torch.h>
+#include <utility>
 
 namespace greeks {
 
 /**
- * @brief Calculates the price and major greeks (delta, gamma, vega, theta) for an American option using the
- * central difference method calculations
- * @tparam T The floating-point type used (e.g., double)
- * @tparam PayoffFn The type of the payoff function (Callable object)
- * @return GreeksResult<T> A struct containing the calculated greek results
+ * @brief Calculates the price and major greeks (delta, gamma, vega, theta) for an American option using LibTorch
+ * autograd.
  */
-template <typename T, typename PayoffFn>
-GreeksResult<T> trinomialGreeks(T spot, T strike, T r, T q, T sigma, T tau, PayoffFn payoffFun) {
-    // --- Calculate price, delta, and gamma
-    const T epsilonSpot{0.01 * spot}; // 1% shock for delta/gamma
-    const T priceBase{pricing::trinomialPrice<T, PayoffFn>(spot, strike, r, q, sigma, tau, payoffFun)};
-    const T priceSpotLo{pricing::trinomialPrice<T, PayoffFn>(spot - epsilonSpot, strike, r, q, sigma, tau, payoffFun)};
-    const T priceSpotHi{pricing::trinomialPrice<T, PayoffFn>(spot + epsilonSpot, strike, r, q, sigma, tau, payoffFun)};
+GreeksResult trinomialGreeks(torch::Tensor spot, torch::Tensor strikes, torch::Tensor r, torch::Tensor q,
+                             torch::Tensor sigmas, torch::Tensor tau, bool isCall) {
+    // Enable gradient tracking
+    spot.requires_grad_(true);
+    sigmas.requires_grad_(true);
+    tau.requires_grad_(true);
 
-    // Use cental difference method
-    const T delta{generic::cdmFirstOrder<T>(priceSpotLo, priceSpotHi, epsilonSpot)};
-    const T gamma{generic::cmdSecondOrder<T>(priceSpotLo, priceBase, priceSpotHi, epsilonSpot)};
+    // Compute price
+    torch::Tensor price{pricing::trinomialPrice(spot, strikes, r, q, sigmas, tau, isCall)};
 
-    // --- Calculate vega
-    static const T epsilonSigma{0.0001}; // 0.01% shock for vega
-    const T priceSigmaLo{
-        pricing::trinomialPrice<T, PayoffFn>(spot, strike, r, q, sigma - epsilonSigma, tau, payoffFun)};
-    const T priceSigmaHi{
-        pricing::trinomialPrice<T, PayoffFn>(spot, strike, r, q, sigma + epsilonSigma, tau, payoffFun)};
-    const T vega{generic::cdmFirstOrder<T>(priceSigmaLo, priceSigmaHi, epsilonSigma)};
+    // Compute delta (first derivative w.r.t spot)
+    torch::Tensor delta{torch::autograd::grad({price}, {spot}, {}, true, true)[0]};
 
-    // --- Calculate theta
-    static const T epsilonTau{static_cast<T>(1) / 365}; // 1 day shock for theta
-    const T priceTauLo{pricing::trinomialPrice<T, PayoffFn>(spot, strike, r, q, sigma, tau - epsilonTau, payoffFun)};
-    const T priceTauHi{pricing::trinomialPrice<T, PayoffFn>(spot, strike, r, q, sigma, tau + epsilonTau, payoffFun)};
-    const T theta{-generic::cdmFirstOrder<T>(priceTauLo, priceTauHi, epsilonTau)};
-    return GreeksResult<T>{.price{priceBase}, .delta{delta}, .gamma{gamma}, .vega{vega}, .theta{theta}};
+    // Compute gamma (second derivative w.r.t spot)
+    torch::Tensor gamma{torch::autograd::grad({delta}, {spot}, {}, true, true)[0]};
+
+    // Compute vega (first derivative w.r.t sigma)
+    torch::Tensor vega{torch::autograd::grad({price}, {sigmas}, {}, true, true)[0]};
+
+    // Compute theta (negative derivative w.r.t tau)
+    torch::Tensor theta{-torch::autograd::grad({price}, {tau}, {}, true, true)[0]};
+
+    return GreeksResult{std::move(price), std::move(delta), std::move(gamma), std::move(vega), std::move(theta)};
 }
 
 /**
- * @brief Calculates the price and major greeks (delta, gamma, vega, theta) for an American call using the
- * central difference method calculations
- * @tparam T The floating-point type used (e.g., double)
- * @return GreeksResult<T> A struct containing the calculated greek results
+ * @brief Convenience wrapper for American call
  */
-template <typename T>
-GreeksResult<T> trinomialCallGreeks(T spot, T strike, T r, T q, T sigma, T tau) {
-    Payoff::Call<T> payoffFun{};
-    return trinomialGreeks<T, Payoff::Call<T>>(spot, strike, r, q, sigma, tau, payoffFun);
+GreeksResult trinomialCallGreeks(torch::Tensor spot, torch::Tensor strikes, torch::Tensor r, torch::Tensor q,
+                                 torch::Tensor sigmas, torch::Tensor tau) {
+    return trinomialGreeks(spot, strikes, r, q, sigmas, tau, true);
 }
 
 /**
- * @brief Calculates the price and major greeks (delta, gamma, vega, theta) for an American put using the
- * central difference method calculations
- * @tparam T The floating-point type used (e.g., double)
- * @return GreeksResult<T> A struct containing the calculated greek results
+ * @brief Convenience wrapper for American put
  */
-template <typename T>
-GreeksResult<T> trinomialPutGreeks(T spot, T strike, T r, T q, T sigma, T tau) {
-    Payoff::Put<T> payoffFun{};
-    return trinomialGreeks<T, Payoff::Put<T>>(spot, strike, r, q, sigma, tau, payoffFun);
+GreeksResult trinomialPutGreeks(torch::Tensor spot, torch::Tensor strikes, torch::Tensor r, torch::Tensor q,
+                                torch::Tensor sigmas, torch::Tensor tau) {
+    return trinomialGreeks(spot, strikes, r, q, sigmas, tau, false);
 }
 
 } // namespace greeks

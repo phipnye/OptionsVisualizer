@@ -1,7 +1,7 @@
 #pragma once
 
-#include <cstddef>
+#include <cstdint>
 
 namespace pricing::constants {
-inline constexpr std::size_t trinomialDepth{100};
+inline constexpr std::int64_t trinomialDepth{100};
 }
