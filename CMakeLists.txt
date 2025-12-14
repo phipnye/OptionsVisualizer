@@ -23,7 +23,17 @@ target_compile_options(StrictFlags INTERFACE
 # --- Setup pybind module
 set(PYBIND11_FINDPYTHON ON)
 find_package(pybind11 CONFIG REQUIRED)
-pybind11_add_module(pricing src/module.cpp)
+pybind11_add_module(pricing 
+    src/grid/index.cpp
+    src/module.cpp
+    src/greeks/trinomial/calculate_greeks.cpp
+    src/greeks/trinomial/details/calculate_greeks.cpp
+    src/greeks/trinomial/details/PricingParams.cpp
+    src/greeks/trinomial/details/helpers.cpp
+    src/greeks/trinomial/details/american_price.cpp
+    src/greeks/GreeksResult.cpp
+    src/greeks/bsm/calculate_greeks.cpp
+)
 install(TARGETS pricing DESTINATION .)
 
 # Link the strict compiler flags
@@ -64,3 +74,8 @@ target_link_libraries(pricing PRIVATE ${TORCH_LIBRARIES})
 
 # Link against pybind
 target_link_libraries(pricing PRIVATE pybind11::module)
+
+# --- Add Test Directory
+
+# This line tells CMake to process the CMakeLists.txt inside the tests/ folder
+add_subdirectory(tests)

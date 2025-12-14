@@ -199,41 +199,19 @@ def update_heatmaps(
     # Define the range of values for varying pricing parameters (needed for axis labels/error plotting)
     strike_arr: np.ndarray[np.float64] = np.linspace(strike_range[0], strike_range[1], GRID_RESOLUTION)
     sigma_arr: np.ndarray[np.float64] = np.linspace(sigma_range[0], sigma_range[1], GRID_RESOLUTION)
-    full_greeks_array: Optional[np.ndarray[np.float64]] = None
+    full_greeks_grid: Optional[np.ndarray[np.float64]] = None
 
     if full_greeks_cache_key is not None:
-        full_greeks_array = CACHE.get(full_greeks_cache_key)
+        full_greeks_grid = CACHE.get(full_greeks_cache_key)
 
     # --- Check if the cached data is available
-    if full_greeks_array is None:
+    if full_greeks_grid is None:
         # Return four error figures
         error_figure: Figure = generate_heatmap_figure(
             np.zeros((GRID_RESOLUTION, GRID_RESOLUTION)),
             strike_arr,
             sigma_arr,
             "ERROR: Calculation Pending or Failed",
-            "Price",
-        )
-        return tuple(error_figure for _ in range(len(OPTION_TYPES)))
-
-    # --- Convert the flat list back into a 4D numpy array (sigma x strike x option type x greek type)
-    try:
-        data_size: int = GRID_RESOLUTION * GRID_RESOLUTION * len(OPTION_TYPES) * len(GREEK_TYPES)
-
-        if full_greeks_array.size != data_size:
-            raise ValueError("Cached list size does not match expected grid dimensions.")
-
-        full_greeks_grid: np.ndarray[np.float64] = (
-            full_greeks_array.reshape(GRID_RESOLUTION, GRID_RESOLUTION, len(OPTION_TYPES), len(GREEK_TYPES))
-        )
-
-    except Exception as e:
-        print(f"Error reshaping cached data: {e}")
-        error_figure: Figure = generate_heatmap_figure(
-            np.zeros((GRID_RESOLUTION, GRID_RESOLUTION)),
-            strike_arr,
-            sigma_arr,
-            "ERROR: Data Conversion Failed",
             "Price",
         )
         return tuple(error_figure for _ in range(len(OPTION_TYPES)))

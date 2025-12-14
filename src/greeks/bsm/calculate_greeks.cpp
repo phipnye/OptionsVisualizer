@@ -1,21 +1,17 @@
-#pragma once
-
-#include "OptionsVisualizer/models/GreeksResult.hpp"
+#include "OptionsVisualizer/greeks/bsm/calculate_greeks.hpp"
+#include "OptionsVisualizer/greeks/GreeksResult.hpp"
 #include <cmath>
 #include <torch/torch.h>
 #include <utility>
 
-namespace greeks {
+namespace greeks::bsm {
 
-/**
- * @brief Calculates the price and major greeks (delta, gamma, vega, theta) for a European Call using the
- * Black-Scholes-Merton (BSM) analytical formulas
- * @tparam T The floating-point type used (e.g., double)
- * @return GreeksResult<T> A struct containing the calculated greek results
- */
-GreeksResult bsmCallGreeks(const torch::Tensor& spot, const torch::Tensor& strikes, const torch::Tensor& r,
-                           const torch::Tensor& q, const torch::Tensor& sigmas, const torch::Tensor& tau) {
+GreeksResult callGreeks(const torch::Tensor& spot, const torch::Tensor& strikes, const torch::Tensor& r,
+                        const torch::Tensor& q, const torch::Tensor& sigmas, const torch::Tensor& tau) {
     // --- Setup
+
+    // Disable gradient computations
+    torch::NoGradGuard noGrad{};
 
     // Broadcast strikes and sigmas
     torch::Tensor strikesGrid{strikes.unsqueeze(1).expand({strikes.size(0), sigmas.size(0)})};
@@ -60,18 +56,15 @@ GreeksResult bsmCallGreeks(const torch::Tensor& spot, const torch::Tensor& strik
     return GreeksResult{std::move(price), std::move(delta), std::move(gamma), std::move(vega), std::move(theta)};
 }
 
-/**
- * @brief Calculates the price and major greeks (delta, gamma, vega, theta) for a European Put using the
- * Black-Scholes-Merton (BSM) analytical formulas
- * @tparam T The floating-point type used (e.g., double)
- * @return GreeksResult<T> A struct containing the calculated greek results
- */
-GreeksResult bsmPutGreeks(const torch::Tensor& spot, const torch::Tensor& strikes, const torch::Tensor& r,
-                          const torch::Tensor& q, const torch::Tensor& sigmas, const torch::Tensor& tau) {
+GreeksResult putGreeks(const torch::Tensor& spot, const torch::Tensor& strikes, const torch::Tensor& r,
+                       const torch::Tensor& q, const torch::Tensor& sigmas, const torch::Tensor& tau) {
     // --- Setup
 
+    // Disable gradient computations
+    torch::NoGradGuard noGrad{};
+
     // Retrieve call counterparts
-    GreeksResult callGreeks{bsmCallGreeks(spot, strikes, r, q, sigmas, tau)};
+    GreeksResult callResults{callGreeks(spot, strikes, r, q, sigmas, tau)};
 
     // Constant exponential factors
     torch::Tensor expQTau{torch::exp(-q * tau)};
@@ -80,22 +73,23 @@ GreeksResult bsmPutGreeks(const torch::Tensor& spot, const torch::Tensor& strike
     // --- Calculate results
 
     // Put-Call Parity: P = C - S * e^(-qT) + K * e^(-rT)
-    torch::Tensor price{callGreeks.price - spot * expQTau + strikes.unsqueeze(1).expand_as(callGreeks.price) * expRTau};
+    torch::Tensor price{callResults.price - spot * expQTau +
+                        strikes.unsqueeze(1).expand_as(callResults.price) * expRTau};
 
     // See Hull (ch. 18 - 398)
     // delta_put = e^(-qT) * (N(d1) - 1) = (e^(-qT) * N(d1)) - e^(-qT) = delta_call - e^(-qT)
-    torch::Tensor delta{callGreeks.delta - expQTau};
+    torch::Tensor delta{callResults.delta - expQTau};
 
     /*
        theta_call - theta_put = -d/dt[C - P]
                               = -d/dt[S * e^(-qT) - K * e^(-rT)]
         -> theta_put = theta_call - S * q * e^(-qT) + K * r * e^(-rT)
     */
-    torch::Tensor theta{callGreeks.theta - (q * spot * expQTau) +
-                        (strikes.unsqueeze(1).expand_as(callGreeks.price) * r * expRTau)};
+    torch::Tensor theta{callResults.theta - (q * spot * expQTau) +
+                        (strikes.unsqueeze(1).expand_as(callResults.price) * r * expRTau)};
 
-    return GreeksResult{std::move(price), std::move(delta), std::move(callGreeks.gamma), std::move(callGreeks.vega),
+    return GreeksResult{std::move(price), std::move(delta), std::move(callResults.gamma), std::move(callResults.vega),
                         std::move(theta)};
 }
 
-} // namespace greeks
+} // namespace greeks::bsm

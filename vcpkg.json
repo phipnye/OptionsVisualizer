@@ -2,6 +2,7 @@
   "name": "options-visualizer",
   "version-string": "1.0.3",
   "dependencies": [
+    "gtest",
     "pybind11"
   ],
   "builtin-baseline": "b2c74683ecfd6a8e7d27ffb0df077f66a9339509"
