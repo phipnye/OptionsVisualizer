@@ -1,9 +1,9 @@
 #pragma once
 
-#include <cstdint>
+#include <Eigen/Dense>
 
 namespace greeks::trinomial::details::constants {
 
-inline constexpr std::int64_t trinomialDepth{100};
+inline constexpr Eigen::DenseIndex trinomialDepth{100};
 
 } // namespace greeks::trinomial::details::constants

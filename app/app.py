@@ -15,6 +15,7 @@ from helpers import (
     create_control_panel,
     create_heatmap_grid,
     generate_heatmap_figure,
+    generate_ranges
 )
 from plotly.graph_objects import Figure
 from styles import (
@@ -158,18 +159,15 @@ def compute_greeks_and_cache(
         return cache_key
 
     # Define the range of values for varying pricing parameters
-    strike_arr: np.ndarray[np.float64] = np.linspace(strike_range[0], strike_range[1], GRID_RESOLUTION)
-    sigma_arr: np.ndarray[np.float64] = np.linspace(sigma_range[0], sigma_range[1], GRID_RESOLUTION)
+    sigmas_arr: np.ndarray[np.float64]
+    strikes_arr: np.ndarray[np.float64]
+    sigmas_arr, strikes_arr = generate_ranges(sigma_range, strike_range)
 
     # Call the C++ pricing engine
     try:
         # pricing.calculate_greeks_grid returns a flat Python list of doubles
-        full_greeks_array: np.ndarray[np.float64] = pricing.calculate_greeks_grid(S, strike_arr, r, q, sigma_arr, T)
-
-        if full_greeks_array.dtype != np.float64:
-            full_greeks_array = full_greeks_array.astype(np.float64)
-
-        CACHE.set(cache_key, full_greeks_array)
+        full_greeks_array: np.ndarray[np.float64] = pricing.calculate_greeks_grid(S, strikes_arr, r, q, sigmas_arr, T)
+        CACHE.set(cache_key, full_greeks_array.reshape(GRID_RESOLUTION, GRID_RESOLUTION, 4, 5, order='A', copy=False))
         return cache_key
 
     except Exception as e:
@@ -197,8 +195,9 @@ def update_heatmaps(
     sigma_range: list[float],
 ) -> tuple[Figure, Figure, Figure, Figure]:
     # Define the range of values for varying pricing parameters (needed for axis labels/error plotting)
-    strike_arr: np.ndarray[np.float64] = np.linspace(strike_range[0], strike_range[1], GRID_RESOLUTION)
-    sigma_arr: np.ndarray[np.float64] = np.linspace(sigma_range[0], sigma_range[1], GRID_RESOLUTION)
+    sigmas_arr: np.ndarray[np.float64]
+    strikes_arr: np.ndarray[np.float64]
+    sigmas_arr, strikes_arr = generate_ranges(sigma_range, strike_range)
     full_greeks_grid: Optional[np.ndarray[np.float64]] = None
 
     if full_greeks_cache_key is not None:
@@ -209,8 +208,8 @@ def update_heatmaps(
         # Return four error figures
         error_figure: Figure = generate_heatmap_figure(
             np.zeros((GRID_RESOLUTION, GRID_RESOLUTION)),
-            strike_arr,
-            sigma_arr,
+            strikes_arr,
+            sigmas_arr,
             "ERROR: Calculation Pending or Failed",
             "Price",
         )
@@ -231,8 +230,8 @@ def update_heatmaps(
     return tuple(
         generate_heatmap_figure(
             selected_greek_grid[:, :, option_type_idx],
-            strike_arr,
-            sigma_arr,
+            strikes_arr,
+            sigmas_arr,
             OPTION_TYPES[option_type_idx],
             greek_name,
             color_range

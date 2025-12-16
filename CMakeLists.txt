@@ -7,25 +7,10 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-# --- Define strict compiler flags
-add_library(StrictFlags INTERFACE)
-target_compile_options(StrictFlags INTERFACE
-    "-Wall"
-    "-Wextra"
-    "-Wshadow"
-    "-Weffc++"
-    "-Wconversion"
-    "-Wno-error=sign-compare"
-    "-pedantic-errors"
-    "-Werror"
-)
-
-# --- Setup pybind module
-set(PYBIND11_FINDPYTHON ON)
-find_package(pybind11 CONFIG REQUIRED)
-pybind11_add_module(pricing 
+# --- Common sources
+set(SOURCES
+    src/grid/calculate_grids.cpp
     src/grid/index.cpp
-    src/module.cpp
     src/greeks/trinomial/calculate_greeks.cpp
     src/greeks/trinomial/details/calculate_greeks.cpp
     src/greeks/trinomial/details/PricingParams.cpp
@@ -34,12 +19,43 @@ pybind11_add_module(pricing
     src/greeks/GreeksResult.cpp
     src/greeks/bsm/calculate_greeks.cpp
 )
+
+# --- Static library for shared code
+add_library(pricingCore STATIC ${SOURCES})
+target_compile_options(pricingCore PUBLIC
+    -Wall
+    -Wextra
+    -Wshadow
+    -Weffc++
+    -Wconversion
+    -Wno-error=sign-compare
+    -Wno-error=array-bounds
+    -pedantic-errors
+    -Werror
+    -fPIC
+)
+target_compile_options(pricingCore PUBLIC -fPIC)
+target_include_directories(pricingCore PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
+
+# Eigen dependency
+find_package(Eigen3 CONFIG REQUIRED)
+target_link_libraries(pricingCore PUBLIC Eigen3::Eigen)
+
+# Pybind dependency
+find_package(pybind11 CONFIG REQUIRED)
+target_link_libraries(pricingCore PUBLIC pybind11::embed)
+
+# --- Pybind module
+set(PYBIND11_FINDPYTHON ON)
+pybind11_add_module(pricing src/module.cpp)
+target_link_libraries(pricing PRIVATE pricingCore)
 install(TARGETS pricing DESTINATION .)
 
-# Link the strict compiler flags
-target_link_libraries(pricing PRIVATE StrictFlags)
+# --- Test executable
+add_executable(pricingTest tests/pricing_test.cpp)
+target_link_libraries(pricingTest PRIVATE pricingCore)
 
-# Apply Debug/Optimization and Sanitizers
+# --- Debug / Sanitizer flags
 set(SANITIZER_FLAGS 
     -fsanitize=address
     -fsanitize=undefined
@@ -50,32 +66,13 @@ set(SANITIZER_FLAGS
     -fsanitize=null
 )
 
-# Apply sanitizer flags to the compiler
-target_compile_options(pricing PRIVATE 
-    # Debug info and no optimization
-    $<$<CONFIG:Debug>:-O0 -g>
-
-    # Sanitizers
-    $<$<CONFIG:Debug>:${SANITIZER_FLAGS}>
-)
-
-# Apply Sanitizer flags to the linker to link the runtime libraries
-target_link_options(pricing PRIVATE 
-    $<$<CONFIG:Debug>:${SANITIZER_FLAGS}>
-)
-
-#--- Dependencies
-# Include directories
-target_include_directories(pricing PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
-
-# Find and link against libtorch
-find_package(Torch REQUIRED)
-target_link_libraries(pricing PRIVATE ${TORCH_LIBRARIES})
-
-# Link against pybind
-target_link_libraries(pricing PRIVATE pybind11::module)
-
-# --- Add Test Directory
-
-# This line tells CMake to process the CMakeLists.txt inside the tests/ folder
-add_subdirectory(tests)
+# Apply sanitizer flags to both targets
+foreach(tgt pricing pricingTest)
+    target_compile_options(${tgt} PRIVATE 
+        $<$<CONFIG:Debug>:-O0 -g>
+        $<$<CONFIG:Debug>:${SANITIZER_FLAGS}>
+    )
+    target_link_options(${tgt} PRIVATE 
+        $<$<CONFIG:Debug>:${SANITIZER_FLAGS}>
+    )
+endforeach()

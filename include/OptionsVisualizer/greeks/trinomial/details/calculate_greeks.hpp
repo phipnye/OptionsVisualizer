@@ -1,11 +1,13 @@
 #pragma once
 
 #include "OptionsVisualizer/greeks/GreeksResult.hpp"
-#include <torch/torch.h>
+#include "OptionsVisualizer/grid/Dims.hpp"
+#include <unsupported/Eigen/CXX11/Tensor>
 
 namespace greeks::trinomial::details {
 
-GreeksResult americanGreeks(torch::Tensor spot, torch::Tensor strikes, torch::Tensor r, torch::Tensor q,
-                            torch::Tensor sigmas, torch::Tensor tau, bool isCall);
+GreeksResult americanGreeks(double spot, const Eigen::Tensor<double, 2>& strikesGrid, double r, double q,
+                            const Eigen::Tensor<double, 2>& sigmasGrid, double tau, grid::index::Dims dims,
+                            bool isCall);
 
 } // namespace greeks::trinomial::details

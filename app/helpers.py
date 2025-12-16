@@ -4,6 +4,7 @@ from dash import dcc, html
 from constants import (
     GREEK_SYMBOLS,
     GREEK_TYPES,
+    GRID_RESOLUTION
 )
 from plotly.graph_objects import Figure
 from styles import (
@@ -313,8 +314,8 @@ def create_input_group(
 
 def generate_heatmap_figure(
     options_grid: np.ndarray[np.float64],
-    strike_arr: np.ndarray[np.float64],
-    sigma_arr: np.ndarray[np.float64],
+    strikes_arr: np.ndarray[np.float64],
+    sigmas_arr: np.ndarray[np.float64],
     title_label: str,
     greek_label: str,
     color_range: Optional[list[float]] = None
@@ -324,8 +325,8 @@ def generate_heatmap_figure(
 
     fig: Figure = px.imshow(
         options_grid,
-        x=strike_arr,
-        y=sigma_arr,
+        x=strikes_arr,
+        y=sigmas_arr,
         origin="lower",
         text_auto=False,
         labels=dict(x="Strike (K)", y="Volatility (\u03C3)", color=color_label),
@@ -363,3 +364,11 @@ def generate_heatmap_figure(
         )
     )
     return fig
+
+def generate_ranges(
+    sigma_range: list[float],
+    strike_range: list[float]
+) -> tuple[np.ndarray[np.float64], np.ndarray[np.float64]]:
+    sigmas_arr: np.ndarray[np.float64] = np.linspace(sigma_range[0], sigma_range[1], GRID_RESOLUTION)
+    strikes_arr: np.ndarray[np.float64] = np.linspace(strike_range[0], strike_range[1], GRID_RESOLUTION)
+    return np.asfortranarray(sigmas_arr), np.asfortranarray(strikes_arr)  # column major order (for eigen computations)

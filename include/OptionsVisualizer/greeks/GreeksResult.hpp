@@ -1,18 +1,19 @@
 #pragma once
 
-#include <torch/torch.h>
+#include <unsupported/Eigen/CXX11/Tensor>
 
 namespace greeks {
 
 struct GreeksResult {
-    torch::Tensor price;
-    torch::Tensor delta;
-    torch::Tensor gamma;
-    torch::Tensor vega;
-    torch::Tensor theta;
+    Eigen::Tensor<double, 2> price;
+    Eigen::Tensor<double, 2> delta;
+    Eigen::Tensor<double, 2> gamma;
+    Eigen::Tensor<double, 2> vega;
+    Eigen::Tensor<double, 2> theta;
 
-    GreeksResult(torch::Tensor&& price_, torch::Tensor&& delta_, torch::Tensor&& gamma_, torch::Tensor&& vega_,
-                 torch::Tensor&& theta_);
+    GreeksResult(Eigen::Tensor<double, 2>&& price_, Eigen::Tensor<double, 2>&& delta_,
+                 Eigen::Tensor<double, 2>&& gamma_, Eigen::Tensor<double, 2>&& vega_,
+                 Eigen::Tensor<double, 2>&& theta_);
 };
 
 } // namespace greeks

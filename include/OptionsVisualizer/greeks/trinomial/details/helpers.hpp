@@ -1,16 +1,20 @@
 #pragma once
 
 #include "OptionsVisualizer/greeks/trinomial/details/PricingParams.hpp"
-#include <torch/torch.h>
+#include "OptionsVisualizer/grid/Dims.hpp"
+#include <Eigen/Dense>
+#include <unsupported/Eigen/CXX11/Tensor>
 
 namespace greeks::trinomial::details::helpers {
 
-PricingParams setupTrinomial(const torch::Tensor& r, const torch::Tensor& q, const torch::Tensor& sigmas,
-                             const torch::Tensor& tau);
+PricingParams setupTrinomial(double r, double q, const Eigen::Tensor<double, 2>& sigmasGrid, double tau,
+                             grid::index::Dims dims);
 
-torch::Tensor buildSpotLattice(const torch::Tensor& spot, const torch::Tensor& u, const torch::Tensor& d,
-                               std::int64_t numNodes);
+Eigen::Tensor<double, 2> buildSpotLattice(double spot, const Eigen::Tensor<double, 1>& u, Eigen::DenseIndex depth,
+                                          grid::index::Dims dims);
 
-torch::Tensor intrinsicValue(const torch::Tensor& spotLattice, const torch::Tensor& strikes, bool isCall);
+Eigen::Tensor<double, 3> intrinsicValue(const Eigen::Tensor<double, 2>& spotsGrid,
+                                        const Eigen::Tensor<double, 2>& strikesGrid, grid::index::Dims dims,
+                                        bool isCall);
 
 } // namespace greeks::trinomial::details::helpers

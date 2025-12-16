@@ -1,11 +1,12 @@
 #include "OptionsVisualizer/greeks/GreeksResult.hpp"
-#include <torch/torch.h>
+#include <unsupported/Eigen/CXX11/Tensor>
 #include <utility>
 
 namespace greeks {
 
-GreeksResult::GreeksResult(torch::Tensor&& price_, torch::Tensor&& delta_, torch::Tensor&& gamma_,
-                           torch::Tensor&& vega_, torch::Tensor&& theta_)
+GreeksResult::GreeksResult(Eigen::Tensor<double, 2>&& price_, Eigen::Tensor<double, 2>&& delta_,
+                           Eigen::Tensor<double, 2>&& gamma_, Eigen::Tensor<double, 2>&& vega_,
+                           Eigen::Tensor<double, 2>&& theta_)
     : price{std::move(price_)}, delta{std::move(delta_)}, gamma{std::move(gamma_)}, vega{std::move(vega_)},
       theta{std::move(theta_)} {}
 

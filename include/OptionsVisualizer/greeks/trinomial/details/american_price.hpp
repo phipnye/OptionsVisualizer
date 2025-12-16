@@ -1,10 +1,12 @@
 #pragma once
 
-#include <torch/torch.h>
+#include "OptionsVisualizer/grid/Dims.hpp"
+#include <unsupported/Eigen/CXX11/Tensor>
 
 namespace greeks::trinomial::details {
 
-torch::Tensor americanPrice(const torch::Tensor& spot, const torch::Tensor& strikes, const torch::Tensor& r,
-                            const torch::Tensor& q, const torch::Tensor& sigmas, const torch::Tensor& tau, bool isCall);
+Eigen::Tensor<double, 2> americanPrice(double spot, const Eigen::Tensor<double, 2>& strikesGrid, double r, double q,
+                                       const Eigen::Tensor<double, 2>& sigmasGrid, double tau, grid::index::Dims dims,
+                                       bool isCall);
 
 } // namespace greeks::trinomial::details

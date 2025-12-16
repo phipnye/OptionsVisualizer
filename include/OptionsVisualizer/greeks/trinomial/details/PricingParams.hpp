@@ -1,20 +1,18 @@
 #pragma once
 
-#include <torch/torch.h>
+#include <unsupported/Eigen/CXX11/Tensor>
 
 namespace greeks::trinomial::details {
 
 struct PricingParams {
-    torch::Tensor dTau;
-    torch::Tensor u;
-    torch::Tensor d;
-    torch::Tensor discountFactor;
-    torch::Tensor pU;
-    torch::Tensor pM;
-    torch::Tensor pD;
+    Eigen::Tensor<double, 1> u;
+    double discountFactor;
+    Eigen::Tensor<double, 3> pU;
+    Eigen::Tensor<double, 3> pM;
+    Eigen::Tensor<double, 3> pD;
 
-    PricingParams(torch::Tensor&& dTau_, torch::Tensor&& u_, torch::Tensor&& d_, torch::Tensor&& discountFactor_,
-                  torch::Tensor&& pU_, torch::Tensor&& pM_, torch::Tensor&& pD_);
+    PricingParams(Eigen::Tensor<double, 1>&& u_, double discountFactor_, Eigen::Tensor<double, 3>&& pU_,
+                  Eigen::Tensor<double, 3>&& pM_, Eigen::Tensor<double, 3>&& pD_);
 };
 
 } // namespace greeks::trinomial::details

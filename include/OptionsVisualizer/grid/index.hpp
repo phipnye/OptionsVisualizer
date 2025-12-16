@@ -1,16 +1,22 @@
 #pragma once
 
 #include "OptionsVisualizer/greeks/GreeksResult.hpp"
-#include <cstdint>
-#include <torch/torch.h>
+#include "OptionsVisualizer/grid/Dims.hpp"
+#include <unsupported/Eigen/CXX11/Tensor>
 
 namespace grid::index {
 
-enum class GreekType : std::int64_t { Price, Delta, Gamma, Vega, Theta };
-enum class OptionType : std::int64_t { AmerCall, AmerPut, EuroCall, EuroPut };
+enum class GreekType : Eigen::DenseIndex { Price, Delta, Gamma, Vega, Theta };
+enum class OptionType : Eigen::DenseIndex { AmerCall, AmerPut, EuroCall, EuroPut };
 
-constexpr std::int64_t idx(OptionType t) noexcept;
-constexpr std::int64_t idx(GreekType t) noexcept;
-void writeOptionGreeks(torch::Tensor& output, index::OptionType option, const greeks::GreeksResult& g);
+constexpr Eigen::DenseIndex idx(OptionType t) noexcept {
+    return static_cast<Eigen::DenseIndex>(t);
+}
+
+constexpr Eigen::DenseIndex idx(GreekType t) noexcept {
+    return static_cast<Eigen::DenseIndex>(t);
+}
+
+void writeOptionGreeks(Eigen::VectorXd& output, index::OptionType option, const greeks::GreeksResult& g, Dims dims);
 
 } // namespace grid::index

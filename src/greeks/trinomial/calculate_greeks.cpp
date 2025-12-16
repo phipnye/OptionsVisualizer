@@ -1,18 +1,19 @@
 #include "OptionsVisualizer/greeks/trinomial/calculate_greeks.hpp"
 #include "OptionsVisualizer/greeks/GreeksResult.hpp"
 #include "OptionsVisualizer/greeks/trinomial/details/calculate_greeks.hpp"
-#include <torch/torch.h>
+#include "OptionsVisualizer/grid/Dims.hpp"
+#include <unsupported/Eigen/CXX11/Tensor>
 
 namespace greeks::trinomial {
 
-GreeksResult trinomialCallGreeks(torch::Tensor spot, torch::Tensor strikes, torch::Tensor r, torch::Tensor q,
-                                 torch::Tensor sigmas, torch::Tensor tau) {
-    return details::americanGreeks(spot, strikes, r, q, sigmas, tau, true);
+GreeksResult callGreeks(double spot, const Eigen::Tensor<double, 2>& strikesGrid, double r, double q,
+                        const Eigen::Tensor<double, 2>& sigmasGrid, double tau, grid::index::Dims dims) {
+    return details::americanGreeks(spot, strikesGrid, r, q, sigmasGrid, tau, dims, true);
 }
 
-GreeksResult trinomialPutGreeks(torch::Tensor spot, torch::Tensor strikes, torch::Tensor r, torch::Tensor q,
-                                torch::Tensor sigmas, torch::Tensor tau) {
-    return details::americanGreeks(spot, strikes, r, q, sigmas, tau, false);
+GreeksResult putGreeks(double spot, const Eigen::Tensor<double, 2>& strikesGrid, double r, double q,
+                       const Eigen::Tensor<double, 2>& sigmasGrid, double tau, grid::index::Dims dims) {
+    return details::americanGreeks(spot, strikesGrid, r, q, sigmasGrid, tau, dims, false);
 }
 
 } // namespace greeks::trinomial

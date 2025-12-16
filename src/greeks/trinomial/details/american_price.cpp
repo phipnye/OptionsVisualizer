@@ -1,53 +1,59 @@
 #include "OptionsVisualizer/greeks/trinomial/details/american_price.hpp"
 #include "OptionsVisualizer/greeks/trinomial/details/constants.hpp"
 #include "OptionsVisualizer/greeks/trinomial/details/helpers.hpp"
-#include <torch/torch.h>
+#include <Eigen/Dense>
+#include <unsupported/Eigen/CXX11/Tensor>
 
 namespace greeks::trinomial::details {
 
-torch::Tensor americanPrice(const torch::Tensor& spot, const torch::Tensor& strikes, const torch::Tensor& r,
-                            const torch::Tensor& q, const torch::Tensor& sigmas, const torch::Tensor& tau,
-                            bool isCall) {
+Eigen::Tensor<double, 2> americanPrice(double spot, const Eigen::Tensor<double, 2>& strikesGrid, double r, double q,
+                                       const Eigen::Tensor<double, 2>& sigmasGrid, double tau, grid::index::Dims dims,
+                                       bool isCall) {
     // Get setup terms
-    const auto [dTau, u, d, discountFactor, pU, pM, pD]{helpers::setupTrinomial(r, q, sigmas, tau)};
+    const auto [u, discountFactor, pU, pM, pD]{helpers::setupTrinomial(r, q, sigmasGrid, tau, dims)};
 
     // --- Compute price using backward induction
 
     // Calculate option values at expiration
-    const std::int64_t numNodes{2 * constants::trinomialDepth + 1};
-    const torch::Tensor expirationSpot{helpers::buildSpotLattice(spot, u, d, numNodes)}; // shape: [node, sigma]
+    const Eigen::Tensor<double, 2> expirationSpot{
+        helpers::buildSpotLattice(spot, u, constants::trinomialDepth, dims)}; // shape: [node, sigma]
 
     // Calculate payoff at expiration (intrinsic value only at expriation)
-    torch::Tensor optionValues{helpers::intrinsicValue(expirationSpot.view({numNodes, 1, -1}), strikes,
-                                                       isCall)}; // shape: [node, strike, sigma]
+    Eigen::Tensor<double, 3> optionValues{
+        helpers::intrinsicValue(expirationSpot, strikesGrid, dims, isCall)}; // shape: [node, sigma, strike]
 
     // Backward induction
-    for (std::int64_t depth{constants::trinomialDepth - 1}; depth > -1; --depth) {
+    for (Eigen::DenseIndex depth{constants::trinomialDepth - 1}; depth > -1; --depth) { // Eigen::DenseIndex is signed
         // Compute spot prices at this timestep
-        const std::int64_t numNodesDepth{2 * depth + 1};
-        const torch::Tensor spotsDepth{helpers::buildSpotLattice(spot, u, d, numNodesDepth)};
-
-        // Select the relevant slice of the next timestep's optionValues
-        const torch::Tensor nextOptionValues{optionValues.slice(0, 0, numNodesDepth + 2)}; // up, mid, down
+        const Eigen::DenseIndex nNodes{2 * depth + 1};
+        const Eigen::Tensor<double, 2> spotsDepth{helpers::buildSpotLattice(spot, u, depth, dims)};
 
         // Compute expected value using risk-neutral probabilities
-        const torch::Tensor expectedValue{pU * nextOptionValues.slice(0, 2, numNodesDepth + 2) +
-                                          pM * nextOptionValues.slice(0, 1, numNodesDepth + 1) +
-                                          pD * nextOptionValues.slice(0, 0, numNodesDepth)};
+        static const Eigen::array<Eigen::DenseIndex, 3> offsetUp{2, 0, 0};
+        static const Eigen::array<Eigen::DenseIndex, 3> offsetMid{1, 0, 0};
+        static const Eigen::array<Eigen::DenseIndex, 3> offsetDown{0, 0, 0};
+
+        // Shape [nNodes, nSigma, nStrike]
+        const Eigen::array<Eigen::DenseIndex, 3> shape{nNodes, optionValues.dimension(1), optionValues.dimension(2)};
+
+        // Broadcast probabilities across the nNodes and nStrike dimensions
+        const Eigen::array<Eigen::DenseIndex, 3> probBcast{nNodes, 1, 1};
+        const Eigen::Tensor<double, 3> expectedValue{pU.broadcast(probBcast) * optionValues.slice(offsetUp, shape) +
+                                                     pM.broadcast(probBcast) * optionValues.slice(offsetMid, shape) +
+                                                     pD.broadcast(probBcast) * optionValues.slice(offsetDown, shape)};
 
         // Discount back one timestep
-        const torch::Tensor continuationValue{discountFactor * expectedValue};
+        const Eigen::Tensor<double, 3> continuationValue{discountFactor * expectedValue};
 
         // Compute intrinsic value
-        const torch::Tensor exerciseValue{
-            helpers::intrinsicValue(spotsDepth.view({numNodesDepth, 1, -1}), strikes, isCall)};
+        const Eigen::Tensor<double, 3> exerciseValue{helpers::intrinsicValue(spotsDepth, strikesGrid, dims, isCall)};
 
         // Update optionValues at this timestep
-        optionValues = torch::max(exerciseValue, continuationValue);
+        optionValues = continuationValue.cwiseMax(exerciseValue);
     }
 
-    // After backward induction, optionValues has shape [1, strikes, sigmas]
-    return optionValues.squeeze(0); // remove the singleton node dimension
+    // remove the singleton node dimension
+    return optionValues.chip(0, 0);
 }
 
 } // namespace greeks::trinomial::details
