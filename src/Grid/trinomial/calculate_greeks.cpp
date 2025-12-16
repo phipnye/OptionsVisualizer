@@ -32,18 +32,18 @@ Grid::GreeksResult Grid::trinomialGreeks(OptionType optType) const {
     // Compute vega (first derivative w.r.t sigma) using CDM
     // Vega = (price(sigma + dSigma) - price(sigma - dSigma)) / (2 * dSigma)
     const Eigen::Tensor<double, 2> priceLoSigma{
-        calculatePrice(spot_, strikesGrid_, r_, q_, sigmasGrid_ + fdmStep, tau_, nSigma_, nStrike_, optType)};
-    const Eigen::Tensor<double, 2> priceHiSigma{
         calculatePrice(spot_, strikesGrid_, r_, q_, sigmasGrid_ - fdmStep, tau_, nSigma_, nStrike_, optType)};
+    const Eigen::Tensor<double, 2> priceHiSigma{
+        calculatePrice(spot_, strikesGrid_, r_, q_, sigmasGrid_ + fdmStep, tau_, nSigma_, nStrike_, optType)};
     Eigen::Tensor<double, 2> vega{firstOrderCDM(priceLoSigma, priceHiSigma, fdmStep)};
 
     // Compute theta (negative first derivative w.r.t tau) using CDM
     // Theta = -(price(tau + dTau) - price(tau - dTau)) / (2 * dTau)
-    const Eigen::Tensor<double, 2> priceHiTau{
-        calculatePrice(spot_, strikesGrid_, r_, q_, sigmasGrid_, tau_ - fdmStep, nSigma_, nStrike_, optType)};
     const Eigen::Tensor<double, 2> priceLoTau{
+        calculatePrice(spot_, strikesGrid_, r_, q_, sigmasGrid_, tau_ - fdmStep, nSigma_, nStrike_, optType)};
+    const Eigen::Tensor<double, 2> priceHiTau{
         calculatePrice(spot_, strikesGrid_, r_, q_, sigmasGrid_, tau_ + fdmStep, nSigma_, nStrike_, optType)};
-    Eigen::Tensor<double, 2> theta{-firstOrderCDM(priceLoSigma, priceHiSigma, fdmStep)};
+    Eigen::Tensor<double, 2> theta{-firstOrderCDM(priceLoTau, priceHiTau, fdmStep)};
 
     // --- Second-order derivatives (gamma)
 
