@@ -7,8 +7,8 @@ PYBIND11_MODULE(pricing, m) {
     m.doc() = "Produce grid of option Greeks (Price, Delta, Gamma, Vega, Theta) across a series of strike and "
               "volatility values.";
 
-    m.def("calculate_greeks_grid", &grid::calculateGrids, py::arg("spot"), py::arg("strikes_arr"), py::arg("r"),
-          py::arg("q"), py::arg("sigmas_arr"), py::arg("tau"),
+    m.def("calculate_greeks_grid", &grid::calculateGrids, py::arg("spot"), py::arg("strikes_arr").noconvert(),
+          py::arg("r"), py::arg("q"), py::arg("sigmas_arr").noconvert(), py::arg("tau"),
           "Produce a flat array (volatility x strike x option type x greek type) of option Greeks (Trinomial American, "
           "BSM European) across strikes and volatilities.");
 }
