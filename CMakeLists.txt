@@ -9,15 +9,12 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # --- Common sources
 set(SOURCES
-    src/grid/calculate_grids.cpp
-    src/grid/index.cpp
-    src/greeks/trinomial/calculate_greeks.cpp
-    src/greeks/trinomial/details/calculate_greeks.cpp
-    src/greeks/trinomial/details/PricingParams.cpp
-    src/greeks/trinomial/details/helpers.cpp
-    src/greeks/trinomial/details/american_price.cpp
-    src/greeks/GreeksResult.cpp
-    src/greeks/bsm/calculate_greeks.cpp
+    src/Grid/trinomial/calculate_greeks.cpp
+    src/Grid/trinomial/internal/calculate_price.cpp
+    src/Grid/trinomial/internal/helpers.cpp
+    src/Grid/GreeksResult.cpp
+    src/Grid/bsm/calculate_greeks.cpp
+    src/Grid/Grid.cpp
 )
 
 # --- Static library for shared code
