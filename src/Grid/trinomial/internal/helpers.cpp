@@ -38,12 +38,13 @@ Eigen::Tensor<double, 3> intrinsicValue(const Eigen::Tensor<double, 2>& spotsGri
         // S - K
         return (spots3D.broadcast(spotsBcast) - strikes3D.broadcast(strikesBcast)).cwiseMax(0.0);
 
-    case OptionType::EuroCall:
+    case OptionType::AmerPut:
         // K - S
         return (strikes3D.broadcast(strikesBcast) - spots3D.broadcast(spotsBcast)).cwiseMax(0.0);
-    }
 
-    throw std::logic_error("Unhandled Grid::OptionType");
+    default:
+        throw std::logic_error("Unhandled Grid::OptionType");
+    }
 }
 
 } // namespace models::trinomial::helpers

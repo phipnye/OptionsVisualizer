@@ -165,8 +165,19 @@ def compute_greeks_and_cache(
 
     # Call the C++ pricing engine
     try:
-        # pricing.calculate_greeks_grid returns a flat Python list of doubles
-        full_greeks_array: np.ndarray[np.float64] = pricing.calculate_greeks_grid(S, strikes_arr, r, q, sigmas_arr, T)
+        # Construct C++ grid object
+        grid: pricing.Grid = pricing.Grid(
+            spot=S,
+            strikes_arr=strikes_arr,
+            r=r,
+            q=q,
+            sigmas_arr=sigmas_arr,
+            tau=T
+        )
+
+        # Calculate greeks across our grid of volatilities and strikes (output is a flat array)
+        full_greeks_array: np.ndarray[np.float64] = grid.calculate_grids()
+
         CACHE.set(
             cache_key,
             full_greeks_array.reshape(
@@ -174,7 +185,7 @@ def compute_greeks_and_cache(
                 GRID_RESOLUTION,
                 len(OPTION_TYPES),
                 len(GREEK_TYPES),
-                order='A',  # keep the major order of the returned object and prevent generating copies
+                order='A',  # retain the memory layout of the returned object and prevent generating copies
                 copy=False
             )
         )

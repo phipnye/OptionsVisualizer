@@ -36,7 +36,7 @@ class Grid {
     GreeksResult trinomialGreeks(OptionType optType) const;
 
     // --- Concatenate results into a single tensor
-    void Grid::writeOptionGreeks(Eigen::VectorXd& output, OptionType optType, const GreeksResult& result) const;
+    void writeOptionGreeks(Eigen::VectorXd& output, OptionType optType, const GreeksResult& result) const;
 
 public:
     Grid(double spot, Eigen::Ref<Eigen::VectorXd> strikes, double r, double q, Eigen::Ref<Eigen::VectorXd> sigmas,

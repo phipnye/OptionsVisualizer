@@ -9,7 +9,7 @@ PYBIND11_MODULE(pricing, m) {
               "volatility values.";
 
     py::class_<Grid>(m, "Grid")
-        .def(py::init<double, const Eigen::VectorXd&, double, double, const Eigen::VectorXd&, double>(),
+        .def(py::init<double, Eigen::Ref<Eigen::VectorXd>, double, double, Eigen::Ref<Eigen::VectorXd>, double>(),
              py::arg("spot"), py::arg("strikes_arr").noconvert(), py::arg("r"), py::arg("q"),
              py::arg("sigmas_arr").noconvert(), py::arg("tau"))
         .def("calculate_grids", &Grid::calculateGrids, "Compute option Greeks on the grid");
