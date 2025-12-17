@@ -1,21 +1,68 @@
+#include "BS_thread_pool.hpp"
 #include "OptionsVisualizer/Grid/Enums.hpp"
 #include "OptionsVisualizer/Grid/Grid.hpp"
 #include "OptionsVisualizer/models/trinomial/calculate_price.hpp"
 #include "OptionsVisualizer/models/trinomial/constants.hpp"
+#include <array>
+#include <future>
+#include <unordered_map>
 #include <unsupported/Eigen/CXX11/Tensor>
 #include <utility>
+#include <vector>
 
 Grid::GreeksResult Grid::trinomialGreeks(OptionType optType) const {
-    // --- Compute the base price
-
     using models::trinomial::calculatePrice;
+    using models::trinomial::constants::fdmStep;
 
-    Eigen::Tensor<double, 2> price{
-        calculatePrice(spot_, strikesGrid_, r_, q_, sigmasGrid_, tau_, nSigma_, nStrike_, optType)};
+    // Construct a thread pool with as many threads as are available in the hardware
+    static BS::thread_pool pool{};
+
+    // --- Compute prices
+
+    // Define a simple struct to hold small perturbations for spot, sigma, and tau
+    struct Perturb {
+        double dSpot{0.0};  // perturbation in spot price
+        double dSigma{0.0}; // perturbation in volatility (sigma)
+        double dTau{0.0};   // perturbation in time to expiry (tau)
+        enum class Idx { Base, LoSpot, HiSpot, LoSigma, HiSigma, LoTau, HiTau } idx;
+    };
+
+    // List of perturbations to compute finite-difference approximations
+    const std::array<Perturb, 7> perturbations{
+        Perturb{0.0, 0.0, 0.0, Perturb::Idx::Base},         // base price (no perturbation)
+        Perturb{-fdmStep, 0.0, 0.0, Perturb::Idx::LoSpot},  // lower spot for delta
+        Perturb{+fdmStep, 0.0, 0.0, Perturb::Idx::HiSpot},  // higher spot for delta
+        Perturb{0.0, -fdmStep, 0.0, Perturb::Idx::LoSigma}, // lower sigma for vega
+        Perturb{0.0, +fdmStep, 0.0, Perturb::Idx::HiSigma}, // higher sigma for vega
+        Perturb{0.0, 0.0, -fdmStep, Perturb::Idx::LoTau},   // lower tau for theta
+        Perturb{0.0, 0.0, +fdmStep, Perturb::Idx::HiTau}    // higher tau for theta
+    };
+
+    // Prepare a vector to hold futures for asynchronous price calculations
+    std::vector<std::future<Eigen::Tensor<double, 2>>> futures{};
+    futures.reserve(perturbations.size());
+
+    // Launch asynchronous tasks for each perturbation using the thread pool
+    for (const Perturb& p : perturbations) {
+        futures.emplace_back(pool.submit_task([p, this, optType]() {
+            // Compute the option price with the specified perturbation applied
+            return calculatePrice(this->spot_ + p.dSpot, // perturbed spot
+                                  this->strikesGrid_, this->r_, this->q_,
+                                  this->sigmasGrid_ + p.dSigma, // perturbed sigmas
+                                  this->tau_ + p.dTau,          // perturbed time
+                                  this->nSigma_, this->nStrike_, optType);
+        }));
+    }
+
+    // Retrieve the computed prices from the futures
+    std::unordered_map<Perturb::Idx, Eigen::Tensor<double, 2>> prices{};
+    prices.reserve(perturbations.size());
+
+    for (std::size_t perturbIdx{0}; perturbIdx < perturbations.size(); ++perturbIdx) {
+        prices[perturbations[perturbIdx].idx] = futures[perturbIdx].get();
+    }
 
     // --- First-order derivatives (delta, vega, theta)
-
-    using models::trinomial::constants::fdmStep;
 
     static auto firstOrderCDM{[](const Eigen::Tensor<double, 2>& lo, const Eigen::Tensor<double, 2>& hi, double eps) {
         return (hi - lo) / (2.0 * eps);
@@ -23,33 +70,24 @@ Grid::GreeksResult Grid::trinomialGreeks(OptionType optType) const {
 
     // Compute delta (first derivative w.r.t spot) using CDM
     // delta = (price(spot + dSpot) - price(spot - dSpot)) / (2 * dSpot)
-    const Eigen::Tensor<double, 2> priceLoSpot{
-        calculatePrice(spot_ - fdmStep, strikesGrid_, r_, q_, sigmasGrid_, tau_, nSigma_, nStrike_, optType)};
-    const Eigen::Tensor<double, 2> priceHiSpot{
-        calculatePrice(spot_ + fdmStep, strikesGrid_, r_, q_, sigmasGrid_, tau_, nSigma_, nStrike_, optType)};
-    Eigen::Tensor<double, 2> delta{firstOrderCDM(priceLoSpot, priceHiSpot, fdmStep)};
+    Eigen::Tensor<double, 2> delta{firstOrderCDM(prices[Perturb::Idx::LoSpot], prices[Perturb::Idx::HiSpot], fdmStep)};
 
     // Compute vega (first derivative w.r.t sigma) using CDM
     // Vega = (price(sigma + dSigma) - price(sigma - dSigma)) / (2 * dSigma)
-    const Eigen::Tensor<double, 2> priceLoSigma{
-        calculatePrice(spot_, strikesGrid_, r_, q_, sigmasGrid_ - fdmStep, tau_, nSigma_, nStrike_, optType)};
-    const Eigen::Tensor<double, 2> priceHiSigma{
-        calculatePrice(spot_, strikesGrid_, r_, q_, sigmasGrid_ + fdmStep, tau_, nSigma_, nStrike_, optType)};
-    Eigen::Tensor<double, 2> vega{firstOrderCDM(priceLoSigma, priceHiSigma, fdmStep)};
+    Eigen::Tensor<double, 2> vega{firstOrderCDM(prices[Perturb::Idx::LoSigma], prices[Perturb::Idx::HiSigma], fdmStep)};
 
     // Compute theta (negative first derivative w.r.t tau) using CDM
     // Theta = -(price(tau + dTau) - price(tau - dTau)) / (2 * dTau)
-    const Eigen::Tensor<double, 2> priceLoTau{
-        calculatePrice(spot_, strikesGrid_, r_, q_, sigmasGrid_, tau_ - fdmStep, nSigma_, nStrike_, optType)};
-    const Eigen::Tensor<double, 2> priceHiTau{
-        calculatePrice(spot_, strikesGrid_, r_, q_, sigmasGrid_, tau_ + fdmStep, nSigma_, nStrike_, optType)};
-    Eigen::Tensor<double, 2> theta{-firstOrderCDM(priceLoTau, priceHiTau, fdmStep)};
+    Eigen::Tensor<double, 2> theta{-firstOrderCDM(prices[Perturb::Idx::LoTau], prices[Perturb::Idx::HiTau], fdmStep)};
 
     // --- Second-order derivatives (gamma)
 
     // Compute gamma (second derivative w.r.t spot) using CDM
     // Gamma = (price(spot + dSpot) - 2 * price(spot) + price(spot - dSpot)) / (dSpot ^ 2)
-    Eigen::Tensor<double, 2> gamma{(priceHiSpot - (2.0 * price) + priceLoSpot) / (fdmStep * fdmStep)};
+    Eigen::Tensor<double, 2> gamma{
+        (prices[Perturb::Idx::HiSpot] - (2.0 * prices[Perturb::Idx::Base]) + prices[Perturb::Idx::LoSpot]) /
+        (fdmStep * fdmStep)};
 
-    return GreeksResult{std::move(price), std::move(delta), std::move(gamma), std::move(vega), std::move(theta)};
+    return GreeksResult{std::move(prices[Perturb::Idx::Base]), std::move(delta), std::move(gamma), std::move(vega),
+                        std::move(theta)};
 }

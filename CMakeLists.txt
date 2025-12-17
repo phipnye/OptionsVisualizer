@@ -31,8 +31,11 @@ target_compile_options(pricingCore PUBLIC
     -Werror
     -fPIC
 )
-target_compile_options(pricingCore PUBLIC -fPIC)
 target_include_directories(pricingCore PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
+
+# BS thread pool dependency
+find_path(BSHOSHANY_THREAD_POOL_INCLUDE_DIRS "BS_thread_pool.hpp")
+target_include_directories(pricingCore PUBLIC ${BSHOSHANY_THREAD_POOL_INCLUDE_DIRS})
 
 # Eigen dependency
 find_package(Eigen3 CONFIG REQUIRED)

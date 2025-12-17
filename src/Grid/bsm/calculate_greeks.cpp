@@ -1,5 +1,6 @@
 #include "OptionsVisualizer/Grid/Grid.hpp"
 #include <cmath>
+#include <numbers>
 #include <unsupported/Eigen/CXX11/Tensor>
 #include <utility>
 
@@ -16,7 +17,7 @@ Grid::GreeksResult Grid::bsmCallGreeks() const {
     // --- Standard normal CDF and PDF using erf
     const Eigen::Tensor<double, 2> cdfD1{0.5 * (1.0 + (d1 / std::sqrt(2.0)).erf())};
     const Eigen::Tensor<double, 2> cdfD2{0.5 * (1.0 + (d2 / std::sqrt(2.0)).erf())};
-    const Eigen::Tensor<double, 2> pdfD1{(1.0 / std::sqrt(2.0 * M_PI)) * (-0.5 * d1.square()).exp()};
+    const Eigen::Tensor<double, 2> pdfD1{(1.0 / std::sqrt(2.0 * std::numbers::pi)) * (-0.5 * d1.square()).exp()};
 
     // Constant exponential factors
     const double expQTau{std::exp(-q_ * tau_)};

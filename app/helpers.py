@@ -346,7 +346,8 @@ def generate_heatmap_figure(
     )
 
     fig.update_traces(
-        text=[[f"{val:.2f}" for val in row] for row in options_grid],
+        text=[[f"{val:.2f}" if greek_label.lower() != "gamma" else f"{val:.4f}" for val in row]
+              for row in options_grid],
         texttemplate="%{text}",
         hovertemplate=f"Strike: %{{x:.2f}}<br>Volatility: %{{y:.3f}}<br>{color_label}: %{{z:.4f}}<extra></extra>",
         textfont=dict(size=FONT_PLOT_LBL, family="Arial")
