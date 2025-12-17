@@ -1,3 +1,4 @@
+import dash_bootstrap_components as dbc
 import numpy as np
 import plotly.express as px
 from dash import dcc, html
@@ -69,14 +70,12 @@ def create_control_panel() -> html.Div:
                                     "fontSize": FONT_SIZE_MD
                                 }
                             ),
-                            dcc.Dropdown(
+                            dbc.Select(
                                 id="greek_selector",
                                 options=[
                                     {'label': GREEK_SYMBOLS[name], 'value': idx} for idx, name in GREEK_TYPES.items()
                                 ],
-                                value=0,  # Default to Price
-                                searchable=False,
-                                clearable=False,
+                                value=0,
                                 style={
                                     "marginBottom": GAP_LG,
                                     "backgroundColor": COLOR_BG_SECONDARY,
