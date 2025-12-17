@@ -40,13 +40,14 @@ Eigen::VectorXd Grid::calculateGrids() const {
 }
 
 void Grid::writeOptionGreeks(Eigen::VectorXd& output, OptionType optType, const Grid::GreeksResult& result) const {
-    static constexpr Eigen::DenseIndex nOptions{idx(OptionType::COUNT)};
+    constexpr Eigen::DenseIndex nOptions{idx(OptionType::COUNT)};
 
-    static constexpr Eigen::DenseIndex priceIdx{idx(GreekType::Price)};
-    static constexpr Eigen::DenseIndex deltaIdx{idx(GreekType::Delta)};
-    static constexpr Eigen::DenseIndex gammaIdx{idx(GreekType::Gamma)};
-    static constexpr Eigen::DenseIndex vegaIdx{idx(GreekType::Vega)};
-    static constexpr Eigen::DenseIndex thetaIdx{idx(GreekType::Theta)};
+    constexpr Eigen::DenseIndex priceIdx{idx(GreekType::Price)};
+    constexpr Eigen::DenseIndex deltaIdx{idx(GreekType::Delta)};
+    constexpr Eigen::DenseIndex gammaIdx{idx(GreekType::Gamma)};
+    constexpr Eigen::DenseIndex vegaIdx{idx(GreekType::Vega)};
+    constexpr Eigen::DenseIndex thetaIdx{idx(GreekType::Theta)};
+    constexpr Eigen::DenseIndex rhoIdx{idx(GreekType::Rho)};
 
     const Eigen::DenseIndex optionIdx{idx(optType)};
     const Eigen::DenseIndex optionStride{nSigma_ * nStrike_};
@@ -54,7 +55,7 @@ void Grid::writeOptionGreeks(Eigen::VectorXd& output, OptionType optType, const 
 
     for (Eigen::DenseIndex sigmaIdx{0}; sigmaIdx < nSigma_; ++sigmaIdx) {
         for (Eigen::DenseIndex strikeIdx{0}; strikeIdx < nStrike_; ++strikeIdx) {
-            // Column-major base: Sigma is fastest, then Strike, then Option, then Greek
+            // Column-major base: sigma is fastest, then strike, then option type, then greek type
             const Eigen::DenseIndex base{sigmaIdx + (strikeIdx * nSigma_) + (optionIdx * optionStride)};
 
             output(base + (priceIdx * greekStride)) = result.price(sigmaIdx, strikeIdx);
@@ -62,6 +63,7 @@ void Grid::writeOptionGreeks(Eigen::VectorXd& output, OptionType optType, const 
             output(base + (gammaIdx * greekStride)) = result.gamma(sigmaIdx, strikeIdx);
             output(base + (vegaIdx * greekStride)) = result.vega(sigmaIdx, strikeIdx);
             output(base + (thetaIdx * greekStride)) = result.theta(sigmaIdx, strikeIdx);
+            output(base + (rhoIdx * greekStride)) = result.rho(sigmaIdx, strikeIdx);
         }
     }
 }

@@ -17,7 +17,8 @@ GREEK_TYPES: dict[int, str] = {
     1: "Delta",
     2: "Gamma",
     3: "Vega",
-    4: "Theta"
+    4: "Theta",
+    5: "Rho"
 }
 
 GREEK_SYMBOLS: dict[str, str] = {
@@ -25,5 +26,6 @@ GREEK_SYMBOLS: dict[str, str] = {
     "Delta": "\u0394 (Delta)",
     "Gamma": "\u0393 (Gamma)",
     "Vega": "\u03bd (Vega)",
-    "Theta": "\u0398 (Theta)"
+    "Theta": "\u0398 (Theta)",
+    "Rho": "\u03c1 (Rho)"
 }

@@ -21,26 +21,30 @@ Grid::GreeksResult Grid::trinomialGreeks(OptionType optType) const {
     const double hSpot{spot_ * 0.05};
     constexpr double hSigma{0.01}; // Standard 1% absolute shift for volatility
     const double hTau{tau_ * 0.01};
+    constexpr double hRho{0.01}; // 100 basis points absolute shift for risk-free rate
 
     // --- Compute prices
 
     // Define a simple struct to hold small perturbations for spot, sigma, and tau
     struct Perturb {
-        double dSpot{0.0};  // perturbation in spot price
-        double dSigma{0.0}; // perturbation in volatility (sigma)
-        double dTau{0.0};   // perturbation in time to expiry (tau)
-        enum class Idx { Base, LoSpot, HiSpot, LoSigma, HiSigma, LoTau, HiTau } idx;
+        double dSpot;  // perturbation in spot price
+        double dSigma; // perturbation in volatility (sigma)
+        double dTau;   // perturbation in time to expiry (tau)
+        double dRho;   // perturbation in risk-free rate (rho)
+        enum class Idx { Base, LoSpot, HiSpot, LoSigma, HiSigma, LoTau, HiTau, LoRho, HiRho } idx;
     };
 
     // List of perturbations to compute finite-difference approximations
-    const std::array<Perturb, 7> perturbations{
-        Perturb{0.0, 0.0, 0.0, Perturb::Idx::Base},        // base price (no perturbation)
-        Perturb{-hSpot, 0.0, 0.0, Perturb::Idx::LoSpot},   // lower spot for delta
-        Perturb{hSpot, 0.0, 0.0, Perturb::Idx::HiSpot},    // higher spot for delta
-        Perturb{0.0, -hSigma, 0.0, Perturb::Idx::LoSigma}, // lower sigma for vega
-        Perturb{0.0, hSigma, 0.0, Perturb::Idx::HiSigma},  // higher sigma for vega
-        Perturb{0.0, 0.0, -hTau, Perturb::Idx::LoTau},     // lower tau for theta
-        Perturb{0.0, 0.0, hTau, Perturb::Idx::HiTau}       // higher tau for theta
+    const std::array<Perturb, 9> perturbations{
+        Perturb{0.0, 0.0, 0.0, 0.0, Perturb::Idx::Base},        // base price (no perturbation)
+        Perturb{-hSpot, 0.0, 0.0, 0.0, Perturb::Idx::LoSpot},   // lower spot for delta
+        Perturb{hSpot, 0.0, 0.0, 0.0, Perturb::Idx::HiSpot},    // higher spot for delta
+        Perturb{0.0, -hSigma, 0.0, 0.0, Perturb::Idx::LoSigma}, // lower sigma for vega
+        Perturb{0.0, hSigma, 0.0, 0.0, Perturb::Idx::HiSigma},  // higher sigma for vega
+        Perturb{0.0, 0.0, -hTau, 0.0, Perturb::Idx::LoTau},     // lower tau for theta
+        Perturb{0.0, 0.0, hTau, 0.0, Perturb::Idx::HiTau},      // higher tau for theta
+        Perturb{0.0, 0.0, 0.0, -hRho, Perturb::Idx::LoRho},     // lower r for rho
+        Perturb{0.0, 0.0, 0.0, hRho, Perturb::Idx::HiRho}       // higher r for rho
     };
 
     // Prepare a vector to hold futures for asynchronous price calculations
@@ -52,7 +56,9 @@ Grid::GreeksResult Grid::trinomialGreeks(OptionType optType) const {
         futures.emplace_back(pool.submit_task([p, this, optType]() {
             // Compute the option price with the specified perturbation applied
             return calculatePrice(this->spot_ + p.dSpot, // perturbed spot
-                                  this->strikesGrid_, this->r_, this->q_,
+                                  this->strikesGrid_,
+                                  this->r_ + p.dRho, // perturbed risk-free rate
+                                  this->q_,
                                   this->sigmasGrid_ + p.dSigma, // perturbed sigmas
                                   this->tau_ + p.dTau,          // perturbed time
                                   this->nSigma_, this->nStrike_, optType);
@@ -67,7 +73,7 @@ Grid::GreeksResult Grid::trinomialGreeks(OptionType optType) const {
         prices[perturbations[perturbIdx].idx] = futures[perturbIdx].get();
     }
 
-    // --- First-order derivatives (delta, vega, theta)
+    // --- First-order derivatives (delta, vega, theta, rho)
 
     static auto firstOrderCDM{[](const Eigen::Tensor<double, 2>& lo, const Eigen::Tensor<double, 2>& hi, double eps) {
         return (hi - lo) / (2.0 * eps);
@@ -85,6 +91,9 @@ Grid::GreeksResult Grid::trinomialGreeks(OptionType optType) const {
     // theta = -(price(tau + dTau) - price(tau - dTau)) / (2 * dTau)
     Eigen::Tensor<double, 2> theta{-firstOrderCDM(prices[Perturb::Idx::LoTau], prices[Perturb::Idx::HiTau], hTau)};
 
+    // Compute rho (first derivate w.r.t r) using CDM
+    Eigen::Tensor<double, 2> rho{firstOrderCDM(prices[Perturb::Idx::LoRho], prices[Perturb::Idx::HiRho], hRho)};
+
     // --- Second-order derivatives (gamma)
 
     // Compute gamma (second derivative w.r.t spot) using CDM
@@ -93,6 +102,10 @@ Grid::GreeksResult Grid::trinomialGreeks(OptionType optType) const {
         (prices[Perturb::Idx::HiSpot] - (2.0 * prices[Perturb::Idx::Base]) + prices[Perturb::Idx::LoSpot]) /
         (hSpot * hSpot)};
 
-    return GreeksResult{std::move(prices[Perturb::Idx::Base]), std::move(delta), std::move(gamma), std::move(vega),
-                        std::move(theta)};
+    return GreeksResult{std::move(prices[Perturb::Idx::Base]),
+                        std::move(delta),
+                        std::move(gamma),
+                        std::move(vega),
+                        std::move(theta),
+                        std::move(rho)};
 }

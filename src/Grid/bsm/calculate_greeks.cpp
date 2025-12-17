@@ -42,7 +42,11 @@ Grid::GreeksResult Grid::bsmCallGreeks() const {
     Eigen::Tensor<double, 2> theta{(-spot_ * pdfD1 * sigmasGrid_ * expQTau / (2 * sqrtTau)) +
                                    (q_ * spot_ * cdfD1 * expQTau) - (r_ * strikesGrid_ * expRTau * cdfD2)};
 
-    return GreeksResult{std::move(price), std::move(delta), std::move(gamma), std::move(vega), std::move(theta)};
+    // rho = K * T * e^(-rT) * N(d2)
+    Eigen::Tensor<double, 2> rho{strikesGrid_ * tau_ * expRTau * cdfD2};
+
+    return GreeksResult{std::move(price), std::move(delta), std::move(gamma),
+                        std::move(vega),  std::move(theta), std::move(rho)};
 }
 
 Grid::GreeksResult Grid::bsmPutGreeks(const Grid::GreeksResult& callResults) const {
@@ -64,8 +68,20 @@ Grid::GreeksResult Grid::bsmPutGreeks(const Grid::GreeksResult& callResults) con
                               = -d/dt[S * e^(-qT) - K * e^(-rT)]
         -> theta_put = theta_call - S * q * e^(-qT) + K * r * e^(-rT)
     */
-    Eigen::Tensor<double, 2> theta{callResults.theta - (q_ * spot_ * expQTau) + (strikesGrid_ * r_ * expRTau)};
+    Eigen::Tensor<double, 2> theta{callResults.theta - (spot_ * q_ * expQTau) + (strikesGrid_ * r_ * expRTau)};
 
-    return GreeksResult{std::move(price), std::move(delta), Eigen::Tensor<double, 2>{callResults.gamma},
-                        Eigen::Tensor<double, 2>{callResults.vega}, std::move(theta)};
+    /*
+        rho_call - rho_put = d/dr[C - P]
+                           = d/dr[S - K * e^(-rT)]
+                           = K * T * e^(-rT)
+        -> rho_put = rho_call - K * T * e^(-rT)
+    */
+    Eigen::Tensor<double, 2> rho{callResults.rho - (strikesGrid_ * tau_ * expRTau)};
+
+    return GreeksResult{std::move(price),
+                        std::move(delta),
+                        Eigen::Tensor<double, 2>{callResults.gamma},
+                        Eigen::Tensor<double, 2>{callResults.vega},
+                        std::move(theta),
+                        std::move(rho)};
 }

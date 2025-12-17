@@ -22,10 +22,11 @@ class Grid {
         Eigen::Tensor<double, 2> gamma;
         Eigen::Tensor<double, 2> vega;
         Eigen::Tensor<double, 2> theta;
+        Eigen::Tensor<double, 2> rho;
 
         GreeksResult(Eigen::Tensor<double, 2>&& price_, Eigen::Tensor<double, 2>&& delta_,
                      Eigen::Tensor<double, 2>&& gamma_, Eigen::Tensor<double, 2>&& vega_,
-                     Eigen::Tensor<double, 2>&& theta_);
+                     Eigen::Tensor<double, 2>&& theta_, Eigen::Tensor<double, 2>&& rho_);
     };
 
     // --- Black-Scholes-Merton

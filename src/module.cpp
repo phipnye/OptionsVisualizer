@@ -5,7 +5,7 @@
 namespace py = pybind11;
 
 PYBIND11_MODULE(pricing, m) {
-    m.doc() = "Produce grid of option Greeks (Price, Delta, Gamma, Vega, Theta) across a series of strike and "
+    m.doc() = "Produce grid of option Greeks (Price, Delta, Gamma, Vega, Theta, Rho) across a series of strike and "
               "volatility values.";
 
     py::class_<Grid>(m, "Grid")
