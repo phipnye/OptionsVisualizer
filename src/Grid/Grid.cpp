@@ -1,5 +1,6 @@
 #include "OptionsVisualizer/Grid/Grid.hpp"
 #include <Eigen/Dense>
+#include <iostream>
 #include <pybind11/pybind11.h>
 #include <unsupported/Eigen/CXX11/Tensor>
 namespace py = pybind11;
@@ -16,17 +17,20 @@ Grid::Grid(double spot, Eigen::Ref<Eigen::VectorXd> strikes, double r, double q,
       tau_{tau} {}
 
 Eigen::VectorXd Grid::calculateGrids() const {
-    // Release GIL (data already copied no longer needed)
+#ifdef NDEBUG
     py::gil_scoped_release noGil{};
+#endif
 
     // Generate results
     GreeksResult amerCall{trinomialGreeks(OptionType::AmerCall)};
     GreeksResult amerPut{trinomialGreeks(OptionType::AmerPut)};
     GreeksResult euroCall{bsmCallGreeks()};
-    GreeksResult euroPut{bsmPutGreeks()};
+    GreeksResult euroPut{bsmPutGreeks(euroCall)};
 
     // Write results to output
+#ifdef NDEBUG
     py::gil_scoped_acquire acquireGil{};
+#endif
     Eigen::VectorXd output(nSigma_ * nStrike_ * idx(OptionType::COUNT) * idx(GreekType::COUNT));
     writeOptionGreeks(output, OptionType::AmerCall, amerCall);
     writeOptionGreeks(output, OptionType::AmerPut, amerPut);
@@ -36,21 +40,28 @@ Eigen::VectorXd Grid::calculateGrids() const {
 }
 
 void Grid::writeOptionGreeks(Eigen::VectorXd& output, OptionType optType, const Grid::GreeksResult& result) const {
+    static constexpr Eigen::DenseIndex nOptions{idx(OptionType::COUNT)};
+
     static constexpr Eigen::DenseIndex priceIdx{idx(GreekType::Price)};
     static constexpr Eigen::DenseIndex deltaIdx{idx(GreekType::Delta)};
     static constexpr Eigen::DenseIndex gammaIdx{idx(GreekType::Gamma)};
     static constexpr Eigen::DenseIndex vegaIdx{idx(GreekType::Vega)};
     static constexpr Eigen::DenseIndex thetaIdx{idx(GreekType::Theta)};
+
     const Eigen::DenseIndex optionIdx{idx(optType)};
+    const Eigen::DenseIndex optionStride{nSigma_ * nStrike_};
+    const Eigen::DenseIndex greekStride{nSigma_ * nStrike_ * nOptions};
 
     for (Eigen::DenseIndex sigmaIdx{0}; sigmaIdx < nSigma_; ++sigmaIdx) {
         for (Eigen::DenseIndex strikeIdx{0}; strikeIdx < nStrike_; ++strikeIdx) {
-            const Eigen::DenseIndex base{sigmaIdx * nStrike_ * 4 * 5 + strikeIdx * 4 * 5 + optionIdx * 5};
-            output(base + priceIdx) = result.price(sigmaIdx, strikeIdx);
-            output(base + deltaIdx) = result.delta(sigmaIdx, strikeIdx);
-            output(base + gammaIdx) = result.gamma(sigmaIdx, strikeIdx);
-            output(base + vegaIdx) = result.vega(sigmaIdx, strikeIdx);
-            output(base + thetaIdx) = result.theta(sigmaIdx, strikeIdx);
+            // Column-major base: Sigma is fastest, then Strike, then Option, then Greek
+            const Eigen::DenseIndex base{sigmaIdx + (strikeIdx * nSigma_) + (optionIdx * optionStride)};
+
+            output(base + (priceIdx * greekStride)) = result.price(sigmaIdx, strikeIdx);
+            output(base + (deltaIdx * greekStride)) = result.delta(sigmaIdx, strikeIdx);
+            output(base + (gammaIdx * greekStride)) = result.gamma(sigmaIdx, strikeIdx);
+            output(base + (vegaIdx * greekStride)) = result.vega(sigmaIdx, strikeIdx);
+            output(base + (thetaIdx * greekStride)) = result.theta(sigmaIdx, strikeIdx);
         }
     }
 }

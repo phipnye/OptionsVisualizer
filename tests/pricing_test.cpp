@@ -1,5 +1,6 @@
 #include "OptionsVisualizer/Grid/Grid.hpp"
 #include <Eigen/Dense>
+#include <fstream>
 #include <iostream>
 #include <unsupported/Eigen/CXX11/Tensor>
 #include <vector>

@@ -30,7 +30,7 @@ class Grid {
 
     // --- Black-Scholes-Merton
     GreeksResult bsmCallGreeks() const;
-    GreeksResult bsmPutGreeks() const;
+    GreeksResult bsmPutGreeks(const GreeksResult& callResults) const;
 
     // --- Trinomial tree
     GreeksResult trinomialGreeks(OptionType optType) const;

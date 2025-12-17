@@ -3,7 +3,7 @@ GRID_RESOLUTION: int = 10
 
 # --- C++ grid mappings
 
-# Mirrors grid::index::OptionType
+# Mirrors Grid::OptionType
 OPTION_TYPES: dict[int, str] = {
     0: "American Call",
     1: "American Put",
@@ -11,7 +11,7 @@ OPTION_TYPES: dict[int, str] = {
     3: "European Put"
 }
 
-# Mirrors grid::index::GreekType
+# Mirrors Grid::GreekType
 GREEK_TYPES: dict[int, str] = {
     0: "Price",
     1: "Delta",

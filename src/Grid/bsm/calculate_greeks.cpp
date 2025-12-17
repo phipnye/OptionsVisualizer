@@ -5,16 +5,16 @@
 #include <utility>
 
 Grid::GreeksResult Grid::bsmCallGreeks() const {
-    // BSM intermediate term d1
+    // BSM intermediate term d1 = (log(S / K) + ((r - q - simga^2 / 2) * T)) / sigma * sqrt(T)
     const double sqrtTau{std::sqrt(tau_)};
     const Eigen::Tensor<double, 2> sigmaSqrtTau{sigmasGrid_ * sqrtTau};
-    const Eigen::Tensor<double, 2> d1{((spot_ / strikesGrid_).log() + (tau_ * (r_ - q_ + 0.5 * sigmasGrid_.square()))) /
+    const Eigen::Tensor<double, 2> d1{((spot_ / strikesGrid_).log() + ((r_ - q_ + 0.5 * sigmasGrid_.square()) * tau_)) /
                                       sigmaSqrtTau};
 
-    // BSM intermediate term d2
+    // BSM intermediate term d2 = d1 - sigma * sqrt(T)
     const Eigen::Tensor<double, 2> d2{d1 - sigmaSqrtTau};
 
-    // --- Standard normal CDF and PDF using erf
+    // --- Standard normal CDF and PDF using error function
     const Eigen::Tensor<double, 2> cdfD1{0.5 * (1.0 + (d1 / std::sqrt(2.0)).erf())};
     const Eigen::Tensor<double, 2> cdfD2{0.5 * (1.0 + (d2 / std::sqrt(2.0)).erf())};
     const Eigen::Tensor<double, 2> pdfD1{(1.0 / std::sqrt(2.0 * std::numbers::pi)) * (-0.5 * d1.square()).exp()};
@@ -45,10 +45,7 @@ Grid::GreeksResult Grid::bsmCallGreeks() const {
     return GreeksResult{std::move(price), std::move(delta), std::move(gamma), std::move(vega), std::move(theta)};
 }
 
-Grid::GreeksResult Grid::bsmPutGreeks() const {
-    // Retrieve call counterparts
-    GreeksResult callResults{bsmCallGreeks()};
-
+Grid::GreeksResult Grid::bsmPutGreeks(const Grid::GreeksResult& callResults) const {
     // Constant exponential factors
     const double expQTau{std::exp(-q_ * tau_)};
     const double expRTau{std::exp(-r_ * tau_)};
@@ -69,6 +66,6 @@ Grid::GreeksResult Grid::bsmPutGreeks() const {
     */
     Eigen::Tensor<double, 2> theta{callResults.theta - (q_ * spot_ * expQTau) + (strikesGrid_ * r_ * expRTau)};
 
-    return GreeksResult{std::move(price), std::move(delta), std::move(callResults.gamma), std::move(callResults.vega),
-                        std::move(theta)};
+    return GreeksResult{std::move(price), std::move(delta), Eigen::Tensor<double, 2>{callResults.gamma},
+                        Eigen::Tensor<double, 2>{callResults.vega}, std::move(theta)};
 }

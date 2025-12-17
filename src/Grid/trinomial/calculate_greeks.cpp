@@ -5,6 +5,7 @@
 #include "OptionsVisualizer/models/trinomial/constants.hpp"
 #include <array>
 #include <future>
+#include <iostream>
 #include <unordered_map>
 #include <unsupported/Eigen/CXX11/Tensor>
 #include <utility>
@@ -12,10 +13,14 @@
 
 Grid::GreeksResult Grid::trinomialGreeks(OptionType optType) const {
     using models::trinomial::calculatePrice;
-    using models::trinomial::constants::fdmStep;
 
     // Construct a thread pool with as many threads as are available in the hardware
     static BS::thread_pool pool{};
+
+    // Use proportional epsilons to stabilize greeks across discrete grids
+    const double hSpot{spot_ * 0.05};
+    constexpr double hSigma{0.01}; // Standard 1% absolute shift for volatility
+    const double hTau{tau_ * 0.01};
 
     // --- Compute prices
 
@@ -29,13 +34,13 @@ Grid::GreeksResult Grid::trinomialGreeks(OptionType optType) const {
 
     // List of perturbations to compute finite-difference approximations
     const std::array<Perturb, 7> perturbations{
-        Perturb{0.0, 0.0, 0.0, Perturb::Idx::Base},         // base price (no perturbation)
-        Perturb{-fdmStep, 0.0, 0.0, Perturb::Idx::LoSpot},  // lower spot for delta
-        Perturb{+fdmStep, 0.0, 0.0, Perturb::Idx::HiSpot},  // higher spot for delta
-        Perturb{0.0, -fdmStep, 0.0, Perturb::Idx::LoSigma}, // lower sigma for vega
-        Perturb{0.0, +fdmStep, 0.0, Perturb::Idx::HiSigma}, // higher sigma for vega
-        Perturb{0.0, 0.0, -fdmStep, Perturb::Idx::LoTau},   // lower tau for theta
-        Perturb{0.0, 0.0, +fdmStep, Perturb::Idx::HiTau}    // higher tau for theta
+        Perturb{0.0, 0.0, 0.0, Perturb::Idx::Base},        // base price (no perturbation)
+        Perturb{-hSpot, 0.0, 0.0, Perturb::Idx::LoSpot},   // lower spot for delta
+        Perturb{hSpot, 0.0, 0.0, Perturb::Idx::HiSpot},    // higher spot for delta
+        Perturb{0.0, -hSigma, 0.0, Perturb::Idx::LoSigma}, // lower sigma for vega
+        Perturb{0.0, hSigma, 0.0, Perturb::Idx::HiSigma},  // higher sigma for vega
+        Perturb{0.0, 0.0, -hTau, Perturb::Idx::LoTau},     // lower tau for theta
+        Perturb{0.0, 0.0, hTau, Perturb::Idx::HiTau}       // higher tau for theta
     };
 
     // Prepare a vector to hold futures for asynchronous price calculations
@@ -70,23 +75,23 @@ Grid::GreeksResult Grid::trinomialGreeks(OptionType optType) const {
 
     // Compute delta (first derivative w.r.t spot) using CDM
     // delta = (price(spot + dSpot) - price(spot - dSpot)) / (2 * dSpot)
-    Eigen::Tensor<double, 2> delta{firstOrderCDM(prices[Perturb::Idx::LoSpot], prices[Perturb::Idx::HiSpot], fdmStep)};
+    Eigen::Tensor<double, 2> delta{firstOrderCDM(prices[Perturb::Idx::LoSpot], prices[Perturb::Idx::HiSpot], hSpot)};
 
     // Compute vega (first derivative w.r.t sigma) using CDM
-    // Vega = (price(sigma + dSigma) - price(sigma - dSigma)) / (2 * dSigma)
-    Eigen::Tensor<double, 2> vega{firstOrderCDM(prices[Perturb::Idx::LoSigma], prices[Perturb::Idx::HiSigma], fdmStep)};
+    // vega = (price(sigma + dSigma) - price(sigma - dSigma)) / (2 * dSigma)
+    Eigen::Tensor<double, 2> vega{firstOrderCDM(prices[Perturb::Idx::LoSigma], prices[Perturb::Idx::HiSigma], hSigma)};
 
     // Compute theta (negative first derivative w.r.t tau) using CDM
-    // Theta = -(price(tau + dTau) - price(tau - dTau)) / (2 * dTau)
-    Eigen::Tensor<double, 2> theta{-firstOrderCDM(prices[Perturb::Idx::LoTau], prices[Perturb::Idx::HiTau], fdmStep)};
+    // theta = -(price(tau + dTau) - price(tau - dTau)) / (2 * dTau)
+    Eigen::Tensor<double, 2> theta{-firstOrderCDM(prices[Perturb::Idx::LoTau], prices[Perturb::Idx::HiTau], hTau)};
 
     // --- Second-order derivatives (gamma)
 
     // Compute gamma (second derivative w.r.t spot) using CDM
-    // Gamma = (price(spot + dSpot) - 2 * price(spot) + price(spot - dSpot)) / (dSpot ^ 2)
+    // gamma = (price(spot + dSpot) - 2 * price(spot) + price(spot - dSpot)) / (dSpot ^ 2)
     Eigen::Tensor<double, 2> gamma{
         (prices[Perturb::Idx::HiSpot] - (2.0 * prices[Perturb::Idx::Base]) + prices[Perturb::Idx::LoSpot]) /
-        (fdmStep * fdmStep)};
+        (hSpot * hSpot)};
 
     return GreeksResult{std::move(prices[Perturb::Idx::Base]), std::move(delta), std::move(gamma), std::move(vega),
                         std::move(theta)};

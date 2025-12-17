@@ -26,6 +26,7 @@ from styles import (
     PADDING_MD,
 )
 from typing import Optional
+from time import perf_counter
 
 # Initialize the Dash application using a dark mode theme
 APP: dash.Dash = dash.Dash(
@@ -166,6 +167,7 @@ def compute_greeks_and_cache(
     # Call the C++ pricing engine
     try:
         # Construct C++ grid object
+        start = perf_counter()
         grid: pricing.Grid = pricing.Grid(
             spot=S,
             strikes_arr=strikes_arr,
@@ -177,7 +179,8 @@ def compute_greeks_and_cache(
 
         # Calculate greeks across our grid of volatilities and strikes (output is a flat array)
         full_greeks_array: np.ndarray[np.float64] = grid.calculate_grids()
-
+        end = perf_counter()
+        print(f"Evaluation time: {end - start:.06f} seconds")
         CACHE.set(
             cache_key,
             full_greeks_array.reshape(
@@ -185,8 +188,8 @@ def compute_greeks_and_cache(
                 GRID_RESOLUTION,
                 len(OPTION_TYPES),
                 len(GREEK_TYPES),
-                order='A',  # retain the memory layout of the returned object and prevent generating copies
-                copy=False
+                order='F',  # retain the column-major memory layout of the returned object
+                copy=False  # prevent copying
             )
         )
         return cache_key
