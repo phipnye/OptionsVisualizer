@@ -22,7 +22,7 @@ def create_control_panel() -> dbc.Card:
                     dbc.Select(
                         id="greek_selector",
                         options=[{"label": GREEK_SYMBOLS[name], "value": idx} for idx, name in GREEK_TYPES.items()],
-                        value='0'  # dbc select gives str values only
+                        value="0"  # dbc select gives str values only
                     ),
 
                     html.Hr(),
@@ -157,66 +157,47 @@ def create_control_panel() -> dbc.Card:
 
 def create_heatmap_grid() -> dbc.Card:
     return dbc.Card(
-        className="h-100",  # allow the card to stretch to fill its parent column
+        className="h-100 shadow-sm",  # allow the card to stretch to fill its parent column and add shadow for depth
         children=[
             dbc.CardBody(
-                className="d-flex flex-column",  # stack contents vertically and enable flex sizing
+                className="d-flex flex-column p-0",  # stack contents vertically and enable flex sizing (no padding)
                 style={"height": "100%", "minHeight": 0},
                 children=[
                     html.Div(
                         html.H4(
                             "Black-Scholes & Trinomial Option Pricing Engine Dashboard",
-                            id="plot_header_title",
-                            className="text-center mt-1 mb-3",  # apply vertical margins
+                            className="text-center p-3",
                         ),
-                        style={"flex": "0 0 auto"},  # title takes only the space it needs
+                        style={"backgroundColor": "rgba(0,0,0,0.2)"}
                     ),
 
                     dcc.Loading(
-                        type="circle",
-                        style={"flex": "1 1 auto", "minHeight": 0},  # loading spinner fills remaining vertical space
-
-                        # --- Top row of heatmaps grid
-                        children=html.Div(
-                            className="d-flex flex-column",
-                            style={"height": "100%"},  # inherit full height from CardBody
-                            children=[
-                                html.Div(
-                                    className="d-flex",
-                                    style={"flex": 1},  # top row takes half of available height
-                                    children=[
-                                        dcc.Graph(
-                                            id="heatmap_ac",
-                                            style={"flex": 1},  # fill half the row width
-                                            config={'displaylogo': False}  # remove created by plotly logo
-                                        ),
-                                        dcc.Graph(
-                                            id="heatmap_ap",
-                                            style={"flex": 1},
-                                            config={'displaylogo': False}
-                                        ),
-                                    ],
+                        children=html.Div([
+                            dbc.Row([
+                                dbc.Col(
+                                    dcc.Graph(id="heatmap_ac", config={"responsive": True, "displaylogo": False}),
+                                    lg=6,
+                                    md=12
                                 ),
-
-                                # --- Bottom row of heatmaps grid
-                                html.Div(
-                                    className="d-flex",
-                                    style={"flex": 1},  # bottom row takes remaining half
-                                    children=[
-                                        dcc.Graph(
-                                            id="heatmap_ec",
-                                            style={"flex": 1},
-                                            config={'displaylogo': False}
-                                        ),
-                                        dcc.Graph(
-                                            id="heatmap_ep",
-                                            style={"flex": 1},
-                                            config={'displaylogo': False}
-                                        ),
-                                    ],
+                                dbc.Col(
+                                    dcc.Graph(id="heatmap_ap", config={"responsive": True, "displaylogo": False}),
+                                    lg=6,
+                                    md=12
                                 ),
-                            ],
-                        ),
+                            ]),
+                            dbc.Row([
+                                dbc.Col(
+                                    dcc.Graph(id="heatmap_ec", config={"responsive": True, "displaylogo": False}),
+                                    lg=6,
+                                    md=12
+                                ),
+                                dbc.Col(
+                                    dcc.Graph(id="heatmap_ep", config={"responsive": True, "displaylogo": False}),
+                                    lg=6,
+                                    md=12
+                                ),
+                            ]),
+                        ], className="flex-grow-1")
                     )
                 ],
             ),

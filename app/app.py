@@ -146,18 +146,17 @@ def compute_greeks_and_cache(
 ) -> Optional[str]:
     inputs_tuple: tuple = (tuple(strike_range), tuple(sigma_range), S, T, r, q)
     cache_key: str = hashlib.sha256(str(inputs_tuple).encode("utf-8")).hexdigest()
-    cached_greeks: Optional[np.ndarray[np.float64]] = CACHE.get(cache_key)
 
-    if cached_greeks is not None:
+    if CACHE.get(cache_key) is not None:
         return cache_key
-
-    # Define the range of values for varying pricing parameters
-    sigmas_arr: np.ndarray[np.float64]
-    strikes_arr: np.ndarray[np.float64]
-    sigmas_arr, strikes_arr = generate_ranges(sigma_range, strike_range)
 
     # Call the C++ pricing engine
     try:
+        # Define the range of values for varying pricing parameters
+        sigmas_arr: np.ndarray[np.float64]
+        strikes_arr: np.ndarray[np.float64]
+        sigmas_arr, strikes_arr = generate_ranges(sigma_range, strike_range)
+
         # Construct C++ grid object
         grid: pricing.Grid = pricing.Grid(
             spot=S,
@@ -169,18 +168,19 @@ def compute_greeks_and_cache(
         )
 
         # Calculate greeks across our grid of volatilities and strikes (output is a flat array)
-        full_greeks_array: np.ndarray[np.float64] = grid.calculate_grids()
-        CACHE.set(
-            cache_key,
-            full_greeks_array.reshape(  # reshape flat output array sigma x strike x option type x greek type
-                GRID_RESOLUTION,
-                GRID_RESOLUTION,
-                len(OPTION_TYPES),
-                len(GREEK_TYPES),
-                order='F',  # retain the column-major memory layout of the returned object
-                copy=False  # prevent copying
-            )
+        flat_greeks_array: np.ndarray[np.float64] = grid.calculate_grids()
+
+        # Reshape flat output array sigma x strike x option type x greek type
+        full_greeks_array: np.ndarray[np.float64] = flat_greeks_array.reshape(
+            GRID_RESOLUTION,
+            GRID_RESOLUTION,
+            len(OPTION_TYPES),
+            len(GREEK_TYPES),
+            order="F",  # retain the column-major memory layout of the returned object
+            copy=False  # prevent copying
         )
+
+        CACHE.set(cache_key, full_greeks_array)
         return cache_key
 
     except Exception as e:
