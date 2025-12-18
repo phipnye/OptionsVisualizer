@@ -11,14 +11,14 @@ OPTION_TYPES: dict[int, str] = {
     3: "European Put"
 }
 
-# Mirrors Grid::GreekType
+# Mirrors Grid::GreekType (keys are str because dbc select gives str values only)
 GREEK_TYPES: dict[int, str] = {
-    0: "Price",
-    1: "Delta",
-    2: "Gamma",
-    3: "Vega",
-    4: "Theta",
-    5: "Rho"
+    "0": "Price",
+    "1": "Delta",
+    "2": "Gamma",
+    "3": "Vega",
+    "4": "Theta",
+    "5": "Rho"
 }
 
 GREEK_SYMBOLS: dict[str, str] = {

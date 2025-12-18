@@ -1,16 +1,17 @@
 import dash
-import pricing
-import numpy as np
 import hashlib
-from flask_caching import Cache
+import pricing
+import dash_bootstrap_components as dbc
+import numpy as np
 from constants import (
-    GREEK_SYMBOLS,
     GREEK_TYPES,
     GRID_RESOLUTION,
     OPTION_TYPES,
 )
-from dash import html
+from dash import dcc, html
 from dash.dependencies import Input, Output, State
+from dash_bootstrap_templates import load_figure_template
+from flask_caching import Cache
 from helpers import (
     create_control_panel,
     create_heatmap_grid,
@@ -18,44 +19,45 @@ from helpers import (
     generate_ranges
 )
 from plotly.graph_objects import Figure
-from styles import (
-    COLOR_TEXT_DEFAULT,
-    COLOR_SLIDER_MARK,
-    FONT_SIZE_XS,
-    GAP_LG,
-    PADDING_MD,
-)
 from typing import Optional
-from time import perf_counter
 
 # Initialize the Dash application using a dark mode theme
 APP: dash.Dash = dash.Dash(
     __name__,
-    external_stylesheets=["https://cdn.jsdelivr.net/npm/bootswatch@5.3.3/dist/darkly/bootstrap.min.css"]
+    external_stylesheets=[dbc.themes.DARKLY]
 )
 
 CACHE: Cache = Cache(APP.server, config={"CACHE_TYPE": "simple", "CACHE_DEFAULT_TIMEOUT": 3600})
 
+# Loads the "darkly" template and sets it as the default
+load_figure_template("darkly")
+
 # --- Layout definition
-APP.layout: html.Div = html.Div(  # type: ignore
-    style={"margin": "0 auto", "padding": PADDING_MD},
+APP.layout = dbc.Container(
+    fluid=True,
+    style={"height": "100vh"},  # set height equal to 100% of viewport height
     children=[
-        html.H1(
-            "Black-Scholes & Trinomial Option Pricing Engine Dashboard",
-            style={"textAlign": "center", "color": COLOR_TEXT_DEFAULT, "marginBottom": "40px"}
-        ),
-
-        # Main 1x2 flexbox container
-        html.Div(
-            style={"display": "flex", "gap": GAP_LG},
+        dbc.Row(
+            className="flex-grow-1 mt-1",  # make the flex item grow to fill available space within the flex container
+            style={"minHeight": 0},
             children=[
-                create_control_panel(),  # Left column
-                create_heatmap_grid()    # Right column
-            ]
-        ),
+                # Left control panel
+                dbc.Col(
+                    create_control_panel(),
+                    md=3,  # 25% width on medium+ screens
+                    style={"height": "100%"}
+                ),
 
+                # Right heatmap grid
+                dbc.Col(
+                    create_heatmap_grid(),
+                    md=9,  # 75% width on medium+ screens
+                    style={"height": "100%"}
+                ),
+            ],
+        ),
         # Cache greek results (prevent re-computing when switiching greek type for the same model parameters)
-        dash.dcc.Store(id="greeks_cache", storage_type="memory"),
+        dcc.Store(id="greeks_cache", storage_type="memory"),
     ]
 )
 
@@ -82,11 +84,11 @@ def update_strike_and_spot(stock_price: float) -> tuple[float, float, float, lis
     # Logic to create clean, well-spaced tick marks for the slider
     range_width: float = strike_max - strike_min
     raw_interval: float = range_width / 10
-    magnitude: float = 10 ** np.floor(np.log10(raw_interval))
+    magnitude: np.float64 = 10 ** np.floor(np.log10(raw_interval))
 
     # Determine the cleanest interval (1, 2, 5, 10, etc. times the magnitude)
     if raw_interval / magnitude <= 1.5:
-        mark_interval: float = magnitude * 1.0
+        mark_interval: np.float64 = magnitude * 1.0
     elif raw_interval / magnitude <= 3.5:
         mark_interval = magnitude * 2.0
     elif raw_interval / magnitude <= 7.5:
@@ -94,14 +96,14 @@ def update_strike_and_spot(stock_price: float) -> tuple[float, float, float, lis
     else:
         mark_interval = magnitude * 10.0
 
-    mark_interval = max(1.0, mark_interval)
+    mark_interval: np.float64 = max(np.float64(1.0), mark_interval)
     marks: dict[float, dict[str, str | dict[str, str]]] = {}
-    start_mark: float = np.ceil(strike_min / mark_interval) * mark_interval  # first clean mark >= to strike_min
+    start_mark: float = np.ceil(strike_min / mark_interval) * mark_interval  # first clean mark >= strike_min
 
     # Generate the actual marks dictionary
     for i in np.arange(start_mark, strike_max + 0.001, mark_interval):
         label: str = f"{i:,.0f}" if i == int(i) else f"{i:,.2f}"
-        marks[i] = {"label": label, "style": {"color": COLOR_SLIDER_MARK, "fontSize": FONT_SIZE_XS}}
+        marks[float(i)] = {"label": label, "style": {"color": "#9C9C9C", "fontSize": "0.75rem"}}
 
     return strike_min, strike_max, strike_step, slider_value, marks
 
@@ -122,16 +124,6 @@ def update_param_summary(S: float, T: float, r: float, q: float) -> html.Pre:
 
     # Format and return the parameters using pre-formatted text
     return html.Pre(f"S = ${S:,.2f}\nT = {T:.2f} years\nr = {r:.2%}\nq = {q:.2%}")
-
-# Callback: Updates the main plot title when the Greek selector changes
-@APP.callback(
-    Output("plot_header_title", "children"),
-    Input("greek_selector", "value")
-)
-def update_plot_header_title(greek_idx: int) -> str:
-    greek_name: str = GREEK_TYPES.get(greek_idx, "Price")
-    symbol: str = GREEK_SYMBOLS.get(greek_name, "Metric")
-    return f"{symbol} Heatmap Comparison (K vs. \u03C3)"
 
 @APP.callback(
     Output("greeks_cache", "data"),
@@ -167,7 +159,6 @@ def compute_greeks_and_cache(
     # Call the C++ pricing engine
     try:
         # Construct C++ grid object
-        start = perf_counter()
         grid: pricing.Grid = pricing.Grid(
             spot=S,
             strikes_arr=strikes_arr,
@@ -179,11 +170,9 @@ def compute_greeks_and_cache(
 
         # Calculate greeks across our grid of volatilities and strikes (output is a flat array)
         full_greeks_array: np.ndarray[np.float64] = grid.calculate_grids()
-        end = perf_counter()
-        print(f"Evaluation time: {end - start:.06f} seconds")
         CACHE.set(
             cache_key,
-            full_greeks_array.reshape(
+            full_greeks_array.reshape(  # reshape flat output array sigma x strike x option type x greek type
                 GRID_RESOLUTION,
                 GRID_RESOLUTION,
                 len(OPTION_TYPES),
@@ -213,10 +202,10 @@ def compute_greeks_and_cache(
     ]
 )
 def update_heatmaps(
-    greek_idx: int,
+    greek_idx: str,
     full_greeks_cache_key: str | None,
     strike_range: list[float],
-    sigma_range: list[float],
+    sigma_range: list[float]
 ) -> tuple[Figure, Figure, Figure, Figure]:
     # Define the range of values for varying pricing parameters (needed for axis labels/error plotting)
     sigmas_arr: np.ndarray[np.float64]
@@ -240,12 +229,12 @@ def update_heatmaps(
         return tuple(error_figure for _ in range(len(OPTION_TYPES)))
 
     # Slice the 4D grid to get the selected greek for all options (Grid shape: [sigma, strike, option type, greek type])
-    selected_greek_grid: np.ndarray[np.float64] = full_greeks_grid[:, :, :, greek_idx]
+    selected_greek_grid: np.ndarray[np.float64] = full_greeks_grid[:, :, :, int(greek_idx)]
 
     # Determine the min/max value globally across the selected Greek to unify the color scale
-    z_min: float = selected_greek_grid.min()
-    z_max: float = selected_greek_grid.max()
-    color_range: list[float] = [z_min, z_max]
+    z_min: np.float64 = selected_greek_grid.min()
+    z_max: np.float64 = selected_greek_grid.max()
+    color_range: list[np.float64] = [z_min, z_max]
 
     # Get the descriptive name for the selected Greek
     greek_name: str = GREEK_TYPES.get(greek_idx, "Price")
