@@ -12,14 +12,12 @@ cmake.args = [
 
 [project]
 # Name used when installing the package via pip
-name = "options-visualizer-pricing"
-version = "1.0.3"
-description = "High-performance option pricing module using C++ and pybind11."
+name = "options-visualizer-surface"
+version = "1.0.4"
+description = "High-performance option pricing surfaces and greeks using C++ and pybind11."
 
-# Essential runtime dependencies (using array_t in C++ source)
-dependencies = [
-    "numpy",
-]
+# Essential runtime dependencies (using Eigen::Vector -> np.array in C++ source)
+dependencies = ["numpy"]
 
 readme = "README.md"
 license = {text = "MIT"}

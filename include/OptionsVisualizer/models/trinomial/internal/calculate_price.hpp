@@ -6,7 +6,7 @@
 namespace models::trinomial {
 
 Eigen::MatrixXd calculatePrice(Eigen::DenseIndex nSigma, Eigen::DenseIndex nStrike, double spot, double r, double q,
-                               const Eigen::MatrixXd& strikesGrid, const Eigen::MatrixXd& sigmasGrid, double tau,
+                               const Eigen::MatrixXd& sigmasGrid, const Eigen::MatrixXd& strikesGrid, double tau,
                                Enums::OptionType optType);
 
 } // namespace models::trinomial

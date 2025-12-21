@@ -7,9 +7,9 @@
 #include <array>
 #include <cstddef>
 
-class OptionManager : public LRUCache {
+class OptionsManager : public LRUCache {
 public:
-    explicit OptionManager(std::size_t capacity);
+    explicit OptionsManager(std::size_t capacity);
 
     const std::array<Eigen::MatrixXd, globals::nGrids>& get(Eigen::DenseIndex nSigma, Eigen::DenseIndex nStrike,
                                                             double spot, double r, double q, double sigmaLo,

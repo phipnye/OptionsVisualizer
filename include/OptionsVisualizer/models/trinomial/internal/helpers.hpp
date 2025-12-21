@@ -2,6 +2,7 @@
 
 #include "OptionsVisualizer/core/Enums.hpp"
 #include <Eigen/Dense>
+#include <vector>
 
 namespace models::trinomial::helpers {
 

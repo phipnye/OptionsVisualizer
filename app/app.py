@@ -1,80 +1,71 @@
 import dash
-import hashlib
-import pricing
+import options_surface
 import dash_bootstrap_components as dbc
 import numpy as np
 from constants import (
+    greek_enum,
     GREEK_TYPES,
     GRID_RESOLUTION,
-    OPTION_TYPES,
+    OPTION_TYPES
 )
-from dash import dcc, html
+from dash import html
 from dash.dependencies import Input, Output, State
 from dash_bootstrap_templates import load_figure_template
-from flask_caching import Cache
 from helpers import (
     create_control_panel,
     create_heatmap_grid,
-    generate_heatmap_figure,
-    generate_ranges
+    generate_heatmap_figure
 )
 from plotly.graph_objects import Figure
-from typing import Optional
+
+# --- Setup
 
 # Initialize the Dash application using a dark mode theme
-APP: dash.Dash = dash.Dash(
-    __name__,
-    external_stylesheets=[dbc.themes.DARKLY]
-)
+APP: dash.Dash = dash.Dash(__name__, external_stylesheets=[dbc.themes.DARKLY])
 
-CACHE: Cache = Cache(APP.server, config={"CACHE_TYPE": "simple", "CACHE_DEFAULT_TIMEOUT": 3600})
+# C++ cache object to retrieving greeks results (capacity dictates number of arrays we can store: capacity x number of
+# sigmas x number of strikes x number of greeks * number of option types)
+OPTIONS_MANAGER: options_surface.OptionsManager = options_surface.OptionsManager(capacity=16)
 
 # Loads the "darkly" template and sets it as the default
 load_figure_template("darkly")
 
-# --- Layout definition
+# Define app layout (left column for control panel, right column for heatmaps)
 APP.layout = dbc.Container(
     fluid=True,
-    style={"height": "100vh"},  # set height equal to 100% of viewport height
+    className="vh-100 d-flex flex-column",  # full viewport height + enable vertical flex sizing
     children=[
         dbc.Row(
-            className="flex-grow-1 mt-1",  # make the flex item grow to fill available space within the flex container
-            style={"minHeight": 0},
+            className="flex-grow-1",  # allow row to expand vertically
             children=[
-                # Left control panel
+                # Control panel (left column)
                 dbc.Col(
                     create_control_panel(),
-                    md=3,  # 25% width on medium+ screens
-                    style={"height": "100%"}
+                    md=3,  # 25% width on md+
+                    className="h-100"
                 ),
-
-                # Right heatmap grid
+                # Heatmaps (right column)
                 dbc.Col(
                     create_heatmap_grid(),
-                    md=9,  # 75% width on medium+ screens
-                    style={"height": "100%"}
+                    md=9,  # 75% width on md+
+                    className="h-100"
                 ),
             ],
-        ),
-        # Cache greek results (prevent re-computing when switiching greek type for the same model parameters)
-        dcc.Store(id="greeks_cache", storage_type="memory"),
+        )
     ]
 )
 
-# Callback: Dynamically adjusts strike range based on spot price input
+
+# Dynamically adjusts strike range based on spot price input
 @APP.callback(
     Output("strike_range", "min"),
     Output("strike_range", "max"),
     Output("strike_range", "step"),
     Output("strike_range", "value"),
     Output("strike_range", "marks"),
-    Input("input_S", "value")
+    Input("input_spot", "value")
 )
 def update_strike_and_spot(stock_price: float) -> tuple[float, float, float, list[float], dict]:
-    # Use a fallback price if input is None or invalid
-    if stock_price is None or stock_price <= 0:
-        stock_price = 100.0
-
     # Define the slider range (50% to 150% of spot price)
     strike_min: float = stock_price * 0.5
     strike_max: float = stock_price * 1.5
@@ -88,7 +79,7 @@ def update_strike_and_spot(stock_price: float) -> tuple[float, float, float, lis
 
     # Determine the cleanest interval (1, 2, 5, 10, etc. times the magnitude)
     if raw_interval / magnitude <= 1.5:
-        mark_interval: np.float64 = magnitude * 1.0
+        mark_interval: np.float64 = magnitude
     elif raw_interval / magnitude <= 3.5:
         mark_interval = magnitude * 2.0
     elif raw_interval / magnitude <= 7.5:
@@ -107,15 +98,13 @@ def update_strike_and_spot(stock_price: float) -> tuple[float, float, float, lis
 
     return strike_min, strike_max, strike_step, slider_value, marks
 
-# Callback: Updates the text summary of fixed parameters
+# Updates the text summary of fixed parameters
 @APP.callback(
     Output("param_summary", "children"),
-    [
-        Input("input_S", "value"),
-        Input("input_T", "value"),
-        Input("input_r", "value"),
-        Input("input_q", "value"),
-    ]
+    Input("input_spot", "value"),
+    Input("input_T", "value"),
+    Input("input_r", "value"),
+    Input("input_q", "value"),
 )
 def update_param_summary(S: float, T: float, r: float, q: float) -> html.Pre:
     # Input validation: Checks if Dash returned None (due to input being out of min/max range)
@@ -125,131 +114,81 @@ def update_param_summary(S: float, T: float, r: float, q: float) -> html.Pre:
     # Format and return the parameters using pre-formatted text
     return html.Pre(f"S = ${S:,.2f}\nT = {T:.2f} years\nr = {r:.2%}\nq = {q:.2%}")
 
-@APP.callback(
-    Output("greeks_cache", "data"),
-    [
-        Input("strike_range", "value"),
-        Input("sigma_range", "value"),
-        Input("input_S", "value"),
-        Input("input_T", "value"),
-        Input("input_r", "value"),
-        Input("input_q", "value"),
-    ]
-)
-def compute_greeks_and_cache(
-    strike_range: list[float],
-    sigma_range: list[float],
-    S: float,
-    T: float,
-    r: float,
-    q: float,
-) -> Optional[str]:
-    inputs_tuple: tuple = (tuple(strike_range), tuple(sigma_range), S, T, r, q)
-    cache_key: str = hashlib.sha256(str(inputs_tuple).encode("utf-8")).hexdigest()
-
-    if CACHE.get(cache_key) is not None:
-        return cache_key
-
-    # Call the C++ pricing engine
-    try:
-        # Define the range of values for varying pricing parameters
-        sigmas_arr: np.ndarray[np.float64]
-        strikes_arr: np.ndarray[np.float64]
-        sigmas_arr, strikes_arr = generate_ranges(sigma_range, strike_range)
-
-        # Construct C++ grid object
-        grid: pricing.Grid = pricing.Grid(
-            spot=S,
-            strikes_arr=strikes_arr,
-            r=r,
-            q=q,
-            sigmas_arr=sigmas_arr,
-            tau=T
-        )
-
-        # Calculate greeks across our grid of volatilities and strikes (output is a flat array)
-        flat_greeks_array: np.ndarray[np.float64] = grid.calculate_grids()
-
-        # Reshape flat output array sigma x strike x option type x greek type
-        full_greeks_array: np.ndarray[np.float64] = flat_greeks_array.reshape(
-            GRID_RESOLUTION,
-            GRID_RESOLUTION,
-            len(OPTION_TYPES),
-            len(GREEK_TYPES),
-            order="F",  # retain the column-major memory layout of the returned object
-            copy=False  # prevent copying
-        )
-
-        CACHE.set(cache_key, full_greeks_array)
-        return cache_key
-
-    except Exception as e:
-        print(f"Error communicating with pricing engine: {e}")
-        return None
-
+# Update heatmap plots
 @APP.callback(
     Output("heatmap_ac", "figure"),
     Output("heatmap_ap", "figure"),
     Output("heatmap_ec", "figure"),
     Output("heatmap_ep", "figure"),
-    [
-        Input("greek_selector", "value"),
-        Input("greeks_cache", "data"),
-    ],
-    [
-        State("strike_range", "value"),
-        State("sigma_range", "value"),
-    ]
+    Input("greek_selector", "value"),
+    State("strike_range", "value"),
+    State("sigma_range", "value"),
+    Input("input_spot", "value"),
+    Input("input_T", "value"),
+    Input("input_r", "value"),
+    Input("input_q", "value"),
 )
 def update_heatmaps(
-    greek_idx: str,
-    full_greeks_cache_key: str | None,
+    greek_idx_str: str,
     strike_range: list[float],
-    sigma_range: list[float]
+    sigma_range: list[float],
+    spot: float,
+    tau: float,
+    r: float,
+    q: float,
 ) -> tuple[Figure, Figure, Figure, Figure]:
+    # Convert the string from Dash Select to an int
+    greek_idx: int = int(greek_idx_str)
+
+    # Map the Greek name for the UI
+    greek_name: str = GREEK_TYPES.get(greek_idx, "Price")
+
     # Define the range of values for varying pricing parameters (needed for axis labels/error plotting)
-    sigmas_arr: np.ndarray[np.float64]
-    strikes_arr: np.ndarray[np.float64]
-    sigmas_arr, strikes_arr = generate_ranges(sigma_range, strike_range)
-    full_greeks_grid: Optional[np.ndarray[np.float64]] = None
+    sigmas_arr: np.ndarray[np.float64] = options_surface.linspace(GRID_RESOLUTION, sigma_range[0], sigma_range[1])
+    strikes_arr: np.ndarray[np.float64] = options_surface.linspace(GRID_RESOLUTION, strike_range[0], strike_range[1])
 
-    if full_greeks_cache_key is not None:
-        full_greeks_grid = CACHE.get(full_greeks_cache_key)
+    try:
+        # Call C++ pricing engine (returns 4 matrices)
+        grids: tuple[np.ndarray[np.float64], ...] = OPTIONS_MANAGER.get_greek(
+            greek_enum(greek_idx),
+            GRID_RESOLUTION,
+            GRID_RESOLUTION,
+            spot,
+            r,
+            q,
+            sigma_range[0],
+            sigma_range[1],
+            strike_range[0],
+            strike_range[1],
+            tau
+        )
 
-    # --- Check if the cached data is available
-    if full_greeks_grid is None:
-        # Return four error figures
-        error_figure: Figure = generate_heatmap_figure(
+    except Exception as e:
+        print(f"Pricing error: {e}")
+        error_fig: Figure = generate_heatmap_figure(
             np.zeros((GRID_RESOLUTION, GRID_RESOLUTION)),
             strikes_arr,
             sigmas_arr,
-            "ERROR: Calculation Pending or Failed",
+            "ERROR",
             "Price",
         )
-        return tuple(error_figure for _ in range(len(OPTION_TYPES)))
+        return (error_fig,) * len(OPTION_TYPES)
 
-    # Slice the 4D grid to get the selected greek for all options (Grid shape: [sigma, strike, option type, greek type])
-    selected_greek_grid: np.ndarray[np.float64] = full_greeks_grid[:, :, :, int(greek_idx)]
+    # Determine global color scale
+    z_min: np.float64 = min(grid.min() for grid in grids)
+    z_max: np.float64 = max(grid.max() for grid in grids)
+    color_range: tuple[np.float64, np.float64] = (z_min, z_max)
 
-    # Determine the min/max value globally across the selected Greek to unify the color scale
-    z_min: np.float64 = selected_greek_grid.min()
-    z_max: np.float64 = selected_greek_grid.max()
-    color_range: list[np.float64] = [z_min, z_max]
-
-    # Get the descriptive name for the selected Greek
-    greek_name: str = GREEK_TYPES.get(greek_idx, "Price")
-
-    # Slice the 3D Greek grid and generate the four figures
     return tuple(
         generate_heatmap_figure(
-            selected_greek_grid[:, :, option_type_idx],
+            grids[i],
             strikes_arr,
             sigmas_arr,
-            OPTION_TYPES[option_type_idx],
+            OPTION_TYPES[i],
             greek_name,
-            color_range
+            color_range=color_range
         )
-        for option_type_idx in range(len(OPTION_TYPES))
+        for i in range(len(OPTION_TYPES))
     )
 
 

@@ -5,12 +5,13 @@
 #include <Eigen/Dense>
 #include <cassert>
 #include <cmath>
+#include <utility>
 #include <vector>
 
 namespace models::trinomial {
 
 Eigen::MatrixXd calculatePrice(Eigen::DenseIndex nSigma, Eigen::DenseIndex nStrike, double spot, double r, double q,
-                               const Eigen::MatrixXd& strikesGrid, const Eigen::MatrixXd& sigmasGrid, double tau,
+                               const Eigen::MatrixXd& sigmasGrid, const Eigen::MatrixXd& strikesGrid, double tau,
                                Enums::OptionType optType) {
     // --- Setup
 
@@ -58,7 +59,7 @@ Eigen::MatrixXd calculatePrice(Eigen::DenseIndex nSigma, Eigen::DenseIndex nStri
         helpers::buildSpotLattice(spot, u, trinomialDepth, nSigma)}; // shape: [node, sigma]
 
     // Calculate payoff at expiration (intrinsic value only at expriation)
-    std::vector<Eigen::MatrixXd> optionValues{helpers::intrinsicValue(
+    std::vector<Eigen::MatrixXd> nextOptionValues{helpers::intrinsicValue(
         expirationSpot, strikesGrid, 2 * trinomialDepth + 1, nSigma, nStrike, optType)}; // shape: [node, sigma, strike]
 
     // Backward induction
@@ -67,35 +68,34 @@ Eigen::MatrixXd calculatePrice(Eigen::DenseIndex nSigma, Eigen::DenseIndex nStri
         const Eigen::DenseIndex nNodes{2 * depth + 1};
         const Eigen::MatrixXd spotsDepth{helpers::buildSpotLattice(spot, u, depth, nSigma)};
 
-        // intrinsicValue returns a new vector of matrices for the exercise boundary at this depth
+        // Vector of matrices for the exercise boundary at this depth
         const std::vector<Eigen::MatrixXd> exerciseValue{
             helpers::intrinsicValue(spotsDepth, strikesGrid, nNodes, nSigma, nStrike, optType)};
 
-        // Reuse the vector for the new time step
-        std::vector<Eigen::MatrixXd> nextOptionValues(nNodes, Eigen::MatrixXd(nSigma, nStrike));
+        // Reuse the vector for the current time step
+        std::vector<Eigen::MatrixXd> curOptionValues(nNodes, Eigen::MatrixXd(nSigma, nStrike));
 
         for (Eigen::DenseIndex node{0}; node < nNodes; ++node) {
-            // Trinomial logic: node i at current depends on nodes (i + 2, i + 1, i) (up, mid, down) from next depth
-            const Eigen::MatrixXd& valUp{optionValues[node + 2]};
-            const Eigen::MatrixXd& valMid{optionValues[node + 1]};
-            const Eigen::MatrixXd& valDown{optionValues[node]};
+            // Node i at current depends on nodes (i + 2, i + 1, i) (up, mid, down) from next depth
+            const Eigen::MatrixXd& valUp{nextOptionValues[node + 2]};
+            const Eigen::MatrixXd& valMid{nextOptionValues[node + 1]};
+            const Eigen::MatrixXd& valDown{nextOptionValues[node]};
 
-            // Calculate expected value: (pU*Up + pM*Mid + pD*Down) * discount
-            // Since pU, pM, pD are [nSigma x nStrike], use element-wise array multiplication
+            // Calculate expected value: (pU * valUp + pM * valMid + pD * valDown) * discount
             const Eigen::MatrixXd continuationValue{
                 (pU.array() * valUp.array() + pM.array() * valMid.array() + pD.array() * valDown.array()) *
                 discountFactor};
 
             // Update optionValues: American early exercise check
-            nextOptionValues[node] = continuationValue.cwiseMax(exerciseValue[node]);
+            curOptionValues[node] = continuationValue.cwiseMax(exerciseValue[node]);
         }
 
-        optionValues = std::move(nextOptionValues);
+        nextOptionValues = std::move(curOptionValues);
     }
 
     // The vector at the end of the loop has size 1 (the root node)
-    assert(optionValues.size() == 1);
-    return optionValues[0];
+    assert(nextOptionValues.size() == 1);
+    return std::move(nextOptionValues[0]);
 }
 
 } // namespace models::trinomial

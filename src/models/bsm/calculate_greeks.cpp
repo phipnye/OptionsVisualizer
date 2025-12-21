@@ -3,6 +3,7 @@
 #include <Eigen/Dense>
 #include <cmath>
 #include <numbers>
+#include <unsupported/Eigen/SpecialFunctions> // error function
 #include <utility>
 
 GreeksResult PricingSurface::bsmCallGreeks() const {
@@ -16,10 +17,8 @@ GreeksResult PricingSurface::bsmCallGreeks() const {
     const auto d2{d1 - sigmaSqrtTau.array()};
 
     // --- Standard normal CDF and PDF using error function
-    const Eigen::MatrixXd erf1{(d1.array() / std::sqrt(2.0)).erf()};
-    const Eigen::MatrixXd erf2{(d2.array() / std::sqrt(2.0)).erf()};
-    const auto cdfD1{0.5 * (1.0 + erf1.array())};
-    const auto cdfD2{0.5 * (1.0 + erf2.array())};
+    const auto cdfD1{0.5 * (1.0 + (d1.array() / std::sqrt(2.0)).erf())};
+    const auto cdfD2{0.5 * (1.0 + (d2.array() / std::sqrt(2.0)).erf())};
     const auto pdfD1{(1.0 / std::sqrt(2.0 * std::numbers::pi)) * (-0.5 * d1.array().square()).exp()};
 
     // Constant exponential factors

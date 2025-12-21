@@ -1,16 +1,75 @@
-#include "OptionsVisualizer/Grid/Grid.hpp"
+#include "OptionsVisualizer/core/Enums.hpp"
+#include "OptionsVisualizer/core/OptionsManager.hpp"
+#include "OptionsVisualizer/core/globals.hpp"
+#include "OptionsVisualizer/core/linspace.hpp"
 #include <Eigen/Dense>
+#include <array>
 #include <pybind11/eigen.h>
+#include <pybind11/native_enum.h>
+#include <pybind11/numpy.h>
 #include <pybind11/pybind11.h>
 namespace py = pybind11;
 
-PYBIND11_MODULE(pricing, m) {
-    m.doc() = "Produce grid of option Greeks (Price, Delta, Gamma, Vega, Theta, Rho) across a series of strike and "
-              "volatility values.";
+PYBIND11_MODULE(options_surface, m) {
+    // OptionsManager class
+    py::class_<OptionsManager> pyOptionsManager{m, "OptionsManager"};
 
-    py::class_<Grid>(m, "Grid")
-        .def(py::init<double, Eigen::Ref<Eigen::VectorXd>, double, double, Eigen::Ref<Eigen::VectorXd>, double>(),
-             py::arg("spot"), py::arg("strikes_arr").noconvert(), py::arg("r"), py::arg("q"),
-             py::arg("sigmas_arr").noconvert(), py::arg("tau"))
-        .def("calculate_grids", &Grid::calculateGrids, "Compute option Greeks on the grid");
+    // Exposed Constructor
+    pyOptionsManager.def(py::init<std::size_t>(), py::arg("capacity"));
+
+    // Method to retrieve greeks values
+    pyOptionsManager.def("get_greek", [](OptionsManager& manager, Enums::GreekType greekType, Eigen::DenseIndex nSigma,
+                                         Eigen::DenseIndex nStrike, double spot, double r, double q, double sigmaLo,
+                                         double sigmaHi, double strikeLo, double strikeHi, double tau) {
+        // Release GIL for multithreaded evaluation
+        py::gil_scoped_release noGil{};
+
+        // Get the reference to the array in the cache
+        const std::array<Eigen::MatrixXd, globals::nGrids>& grids{
+            manager.get(nSigma, nStrike, spot, r, q, sigmaLo, sigmaHi, strikeLo, strikeHi, tau)};
+
+        constexpr std::size_t nGreeks{Enums::idx(Enums::GreekType::COUNT)};
+        constexpr std::size_t nOptTypes{Enums::idx(Enums::OptionType::COUNT)};
+        const std::size_t greekIdx{Enums::idx(greekType)};
+
+        // Re-acquire the GIL
+        py::gil_scoped_acquire gil{};
+        py::tuple output(nOptTypes);
+
+        for (std::size_t optIdx{0}; optIdx < nOptTypes; ++optIdx) {
+            // Pass immuatable views of data to python
+            const Eigen::MatrixXd& grid{grids[optIdx * nGreeks + greekIdx]};
+            output[optIdx] = py::array_t<double>{
+                {grid.rows(), grid.cols()},                            // shape
+                {sizeof(double), sizeof(double) * grid.outerStride()}, // strides
+                grid.data(),                                           // data pointer
+                py::cast(&manager)                                     // owner
+            };
+            output[optIdx].attr("flags").attr("writeable") = false;
+        }
+
+        return output;
+    });
+
+    // GreekType Enum
+    py::native_enum<Enums::GreekType>(pyOptionsManager, "GreekType", "enum.Enum")
+        .value("Price", Enums::GreekType::Price)
+        .value("Delta", Enums::GreekType::Delta)
+        .value("Gamma", Enums::GreekType::Gamma)
+        .value("Vega", Enums::GreekType::Vega)
+        .value("Theta", Enums::GreekType::Theta)
+        .value("Rho", Enums::GreekType::Rho)
+        .value("COUNT", Enums::GreekType::COUNT)
+        .finalize();
+
+    // OptionType Enum
+    py::native_enum<Enums::OptionType>(pyOptionsManager, "OptionType", "enum.Enum")
+        .value("AmerCall", Enums::OptionType::AmerCall)
+        .value("AmerPut", Enums::OptionType::AmerPut)
+        .value("EuroCall", Enums::OptionType::EuroCall)
+        .value("EuroPut", Enums::OptionType::EuroPut)
+        .value("COUNT", Enums::OptionType::COUNT)
+        .finalize();
+
+    m.def("linspace", &linspace, py::arg("size"), py::arg("lo"), py::arg("hi"), "Create a linearly spaced vector");
 }

@@ -3,9 +3,9 @@ import numpy as np
 import plotly.express as px
 from dash import dcc, html
 from constants import (
+    greek_enum,
     GREEK_SYMBOLS,
     GREEK_TYPES,
-    GRID_RESOLUTION
 )
 from plotly.graph_objects import Figure
 from typing import Optional
@@ -21,8 +21,10 @@ def create_control_panel() -> dbc.Card:
                     dbc.Label("Output Metric"),
                     dbc.Select(
                         id="greek_selector",
-                        options=[{"label": GREEK_SYMBOLS[name], "value": idx} for idx, name in GREEK_TYPES.items()],
-                        value="0"  # dbc select gives str values only
+                        options=[
+                            {"label": GREEK_SYMBOLS[name], "value": str(val)} for val, name in GREEK_TYPES.items()
+                        ],
+                        value=str(greek_enum.Price.value)  # dbc select gives str values only
                     ),
 
                     html.Hr(),
@@ -60,7 +62,7 @@ def create_control_panel() -> dbc.Card:
                                 [
                                     dbc.Label("Spot ($)"),
                                     dbc.Input(
-                                        id="input_S",
+                                        id="input_spot",
                                         type="number",
                                         value=100.0,
                                         min=0.01,
@@ -157,47 +159,78 @@ def create_control_panel() -> dbc.Card:
 
 def create_heatmap_grid() -> dbc.Card:
     return dbc.Card(
-        className="h-100 shadow-sm",  # allow the card to stretch to fill its parent column and add shadow for depth
+        className="h-100",  # fill parent column height
+
         children=[
             dbc.CardBody(
-                className="d-flex flex-column p-0",  # stack contents vertically and enable flex sizing (no padding)
-                style={"height": "100%", "minHeight": 0},
+                className="d-flex flex-column h-100",
+                style={"minHeight": 0},  # allow flex children to shrink
+
                 children=[
+                    # fixed-height header
                     html.Div(
-                        html.H4(
-                            "Black-Scholes & Trinomial Option Pricing Engine Dashboard",
-                            className="text-center p-3",
-                        ),
-                        style={"backgroundColor": "rgba(0,0,0,0.2)"}
+                        "Black-Scholes & Trinomial Option Pricing Engine Dashboard",
+                        className="text-center p-2"
                     ),
 
-                    dcc.Loading(
-                        children=html.Div([
-                            dbc.Row([
-                                dbc.Col(
-                                    dcc.Graph(id="heatmap_ac", config={"responsive": True, "displaylogo": False}),
-                                    lg=6,
-                                    md=12
-                                ),
-                                dbc.Col(
-                                    dcc.Graph(id="heatmap_ap", config={"responsive": True, "displaylogo": False}),
-                                    lg=6,
-                                    md=12
-                                ),
-                            ]),
-                            dbc.Row([
-                                dbc.Col(
-                                    dcc.Graph(id="heatmap_ec", config={"responsive": True, "displaylogo": False}),
-                                    lg=6,
-                                    md=12
-                                ),
-                                dbc.Col(
-                                    dcc.Graph(id="heatmap_ep", config={"responsive": True, "displaylogo": False}),
-                                    lg=6,
-                                    md=12
-                                ),
-                            ]),
-                        ], className="flex-grow-1")
+                    # main plot area
+                    html.Div(
+                        className="flex-grow-1",     # take remaining space
+                        style={"minHeight": 0},      # avoid Plotly overflow bug
+
+                        children=[
+                            dcc.Loading(
+                                className="h-100",  # spinner fills plot area
+
+                                children=[
+                                    dbc.Row(
+                                        className="h-50",  # top half
+
+                                        children=[
+                                            dbc.Col(
+                                                dcc.Graph(
+                                                    id="heatmap_ac",
+                                                    style={"height": "100%"}  # let Plotly fill container
+                                                ),
+                                                md=6,
+                                                className="h-100"
+                                            ),
+                                            dbc.Col(
+                                                dcc.Graph(
+                                                    id="heatmap_ap",
+                                                    style={"height": "100%"}
+                                                ),
+                                                md=6,
+                                                className="h-100"
+                                            ),
+                                        ],
+                                    ),
+
+                                    dbc.Row(
+                                        className="h-50",  # bottom half
+
+                                        children=[
+                                            dbc.Col(
+                                                dcc.Graph(
+                                                    id="heatmap_ec",
+                                                    style={"height": "100%"}
+                                                ),
+                                                md=6,
+                                                className="h-100"
+                                            ),
+                                            dbc.Col(
+                                                dcc.Graph(
+                                                    id="heatmap_ep",
+                                                    style={"height": "100%"}
+                                                ),
+                                                md=6,
+                                                className="h-100"
+                                            ),
+                                        ],
+                                    ),
+                                ],
+                            )
+                        ],
                     )
                 ],
             ),
@@ -211,8 +244,8 @@ def generate_heatmap_figure(
     sigmas_arr: np.ndarray[np.float64],
     title_label: str,
     greek_label: str,
-    color_range: Optional[list[float]] = None,
-    font_size: int = 14
+    font_size: int = 14,
+    color_range: Optional[tuple[np.float64]] = None
 ) -> Figure:
     """Generates a standardized heatmap figure with custom styling and text overlay."""
     color_label: str = GREEK_SYMBOLS.get(greek_label, greek_label)
@@ -245,6 +278,7 @@ def generate_heatmap_figure(
     fig.update_layout(
         margin=dict(l=40, r=10, t=35, b=35),  # tighten internal spacing
         autosize=True,
+        height=None,  # let CSS control height (required for flex layouts)
         coloraxis_colorbar=dict(
             title=None,
             thickness=10  # colorbar thickness
@@ -252,11 +286,3 @@ def generate_heatmap_figure(
         title=dict(x=0.5, xanchor="center")
     )
     return fig
-
-def generate_ranges(
-    sigma_range: list[float],
-    strike_range: list[float]
-) -> tuple[np.ndarray[np.float64], np.ndarray[np.float64]]:
-    sigmas_arr: np.ndarray[np.float64] = np.linspace(sigma_range[0], sigma_range[1], GRID_RESOLUTION)
-    strikes_arr: np.ndarray[np.float64] = np.linspace(strike_range[0], strike_range[1], GRID_RESOLUTION)
-    return np.asfortranarray(sigmas_arr), np.asfortranarray(strikes_arr)  # column major order (for eigen computations)

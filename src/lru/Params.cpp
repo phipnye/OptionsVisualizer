@@ -9,9 +9,11 @@ Params::Params(Eigen::DenseIndex nSigma_, Eigen::DenseIndex nStrike_, double spo
       strikeLo{quantize(strikeLo_)}, strikeHi{quantize(strikeHi_)}, tau{quantize(tau_)} {}
 
 std::int64_t Params::quantize(double param) {
-    if (param == 0.0) {
-        return std::int64_t{0};
-    }
-
     return static_cast<std::int64_t>(param * scale);
+}
+
+bool Params::operator==(const Params& other) const noexcept {
+    return nSigma == other.nSigma && nStrike == other.nStrike && spot == other.spot && r == other.r && q == other.q &&
+           sigmaLo == other.sigmaLo && sigmaHi == other.sigmaHi && strikeLo == other.strikeLo &&
+           strikeHi == other.strikeHi && tau == other.tau;
 }

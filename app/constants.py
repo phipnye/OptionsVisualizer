@@ -1,24 +1,29 @@
-# Defines the resolution of the strike/volatility grid (e.g., 10x10)
+import enum
+import options_surface
+
+# Shortcut for readability
+greek_enum: enum.Enum = options_surface.OptionsManager.GreekType
+opt_enum: enum.Enum = options_surface.OptionsManager.OptionType
+
+# The number of strikes and sigmas to price across
 GRID_RESOLUTION: int = 10
 
-# --- C++ grid mappings
-
-# Mirrors Grid::OptionType
+# Now these are synced to C++ memory values
 OPTION_TYPES: dict[int, str] = {
-    0: "American Call",
-    1: "American Put",
-    2: "European Call",
-    3: "European Put"
+    opt_enum.AmerCall.value: "American Call",
+    opt_enum.AmerPut.value: "American Put",
+    opt_enum.EuroCall.value: "European Call",
+    opt_enum.EuroPut.value: "European Put"
 }
 
-# Mirrors Grid::GreekType (keys are str because dbc select gives str values only)
+# Use the Enum values as keys for the Selector
 GREEK_TYPES: dict[int, str] = {
-    "0": "Price",
-    "1": "Delta",
-    "2": "Gamma",
-    "3": "Vega",
-    "4": "Theta",
-    "5": "Rho"
+    greek_enum.Price.value: "Price",
+    greek_enum.Delta.value: "Delta",
+    greek_enum.Gamma.value: "Gamma",
+    greek_enum.Vega.value: "Vega",
+    greek_enum.Theta.value: "Theta",
+    greek_enum.Rho.value: "Rho"
 }
 
 GREEK_SYMBOLS: dict[str, str] = {

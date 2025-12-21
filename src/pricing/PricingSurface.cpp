@@ -1,5 +1,3 @@
-#pragma once
-
 #include "OptionsVisualizer/pricing/PricingSurface.hpp"
 #include "OptionsVisualizer/core/Enums.hpp"
 #include "OptionsVisualizer/core/globals.hpp"
@@ -11,14 +9,13 @@
 PricingSurface::PricingSurface(Eigen::DenseIndex nSigma, Eigen::DenseIndex nStrike, double spot, double r, double q,
                                double sigmaLo, double sigmaHi, double strikeLo, double strikeHi, double tau)
     : nSigma_{nSigma}, nStrike_{nStrike}, spot_{spot}, r_{r}, q_{q},
-      sigmasGrid_{linspace(nSigma_, sigmaLo, sigmaHi).replicate(nStrike_, 1)},
-      strikesGrid_{linspace(nStrike_, strikeLo, strikeHi).replicate(1, nSigma_)}, tau_{tau} {}
+      sigmasGrid_{linspace(nSigma_, sigmaLo, sigmaHi).replicate(1, nStrike_)},
+      strikesGrid_{linspace(nStrike_, strikeLo, strikeHi).transpose().replicate(nSigma_, 1)}, tau_{tau} {}
 
 std::array<Eigen::MatrixXd, globals::nGrids> PricingSurface::calculateGrids() const {
     static const auto appendGreeks{
         [](std::array<Eigen::MatrixXd, globals::nGrids>& grids, Enums::OptionType optType, GreeksResult&& g) {
-            constexpr std::size_t nGreeks{Enums::idx(Enums::GreekType::COUNT)};
-            const std::size_t base{Enums::idx(optType) * nGreeks};
+            const std::size_t base{Enums::idx(optType) * Enums::idx(Enums::GreekType::COUNT)};
             grids[base + Enums::idx(Enums::GreekType::Price)] = std::move(g.price);
             grids[base + Enums::idx(Enums::GreekType::Delta)] = std::move(g.delta);
             grids[base + Enums::idx(Enums::GreekType::Gamma)] = std::move(g.gamma);

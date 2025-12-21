@@ -6,22 +6,21 @@
 
 std::size_t ParamsHash::operator()(const Params& params) const noexcept {
     std::size_t h{0};
-    static std::hash<std::int64_t> hasher{};
 
-    auto hashCombine{[&h](std::size_t v) {
+    const auto hashCombine{[&h](std::size_t v) {
         // 64-bit version of boost::hash_combine
         h ^= v + 0x9e3779b97f4a7c15ULL + (h << 6) + (h >> 2);
     }};
 
-    hashCombine(hasher(params.nSigma));
-    hashCombine(hasher(params.nStrike));
-    hashCombine(hasher(params.spot));
-    hashCombine(hasher(params.r));
-    hashCombine(hasher(params.q));
-    hashCombine(hasher(params.sigmaLo));
-    hashCombine(hasher(params.sigmaHi));
-    hashCombine(hasher(params.strikeLo));
-    hashCombine(hasher(params.strikeHi));
-    hashCombine(hasher(params.tau));
+    hashCombine(std::hash<std::int64_t>{}(params.nSigma));
+    hashCombine(std::hash<std::int64_t>{}(params.nStrike));
+    hashCombine(std::hash<std::int64_t>{}(params.spot));
+    hashCombine(std::hash<std::int64_t>{}(params.r));
+    hashCombine(std::hash<std::int64_t>{}(params.q));
+    hashCombine(std::hash<std::int64_t>{}(params.sigmaLo));
+    hashCombine(std::hash<std::int64_t>{}(params.sigmaHi));
+    hashCombine(std::hash<std::int64_t>{}(params.strikeLo));
+    hashCombine(std::hash<std::int64_t>{}(params.strikeHi));
+    hashCombine(std::hash<std::int64_t>{}(params.tau));
     return h;
 }

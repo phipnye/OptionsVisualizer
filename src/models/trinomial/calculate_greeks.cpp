@@ -53,13 +53,14 @@ GreeksResult PricingSurface::trinomialGreeks(Enums::OptionType optType) const {
     for (const Perturb& p : perturbations) {
         futures.emplace_back(pool.submit_task([p, this, optType]() {
             // Compute the option price with the specified perturbation applied
-            return calculatePrice(this->spot_ + p.dSpot, // perturbed spot
-                                  this->strikesGrid_,
-                                  this->r_ + p.dRho, // perturbed risk-free rate
+            return calculatePrice(this->nSigma_, this->nStrike_,
+                                  this->spot_ + p.dSpot, // perturbed spot
+                                  this->r_ + p.dRho,     // perturbed risk-free rate
                                   this->q_,
                                   this->sigmasGrid_.array() + p.dSigma, // perturbed sigmas
-                                  this->tau_ + p.dTau,                  // perturbed time
-                                  this->nSigma_, this->nStrike_, optType);
+                                  this->strikesGrid_,
+                                  this->tau_ + p.dTau, // perturbed time
+                                  optType);
         }));
     }
 

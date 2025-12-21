@@ -1,6 +1,5 @@
 #pragma once
 
-#include "OptionsVisualizer/core/Enums.hpp"
 #include "OptionsVisualizer/core/globals.hpp"
 #include "OptionsVisualizer/lru/Params.hpp"
 #include "OptionsVisualizer/lru/ParamsHash.hpp"

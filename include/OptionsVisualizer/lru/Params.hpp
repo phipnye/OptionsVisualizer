@@ -18,6 +18,8 @@ struct Params {
     Params(Eigen::DenseIndex nSigma_, Eigen::DenseIndex nStrike_, double spot_, double r_, double q_, double sigmaLo_,
            double sigmaHi_, double strikeLo_, double strikeHi_, double tau_);
 
+    bool operator==(const Params& other) const noexcept;
+
 private:
     static constexpr double scale{1e6}; // 1e-6 precision
     static std::int64_t quantize(double param);
