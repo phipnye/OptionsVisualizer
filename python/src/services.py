@@ -22,9 +22,13 @@ class PricingService:
         tau: float,
     ) -> tuple[tuple[np.ndarray[np.float64], ...], np.ndarray[np.float64], np.ndarray[np.float64]]:
         try:
-            # Internal math logic moved here
+            # Generate linear axis arrays for the heatmap grid coordinates (options_surface.linspace is used for
+            # consistency with the C++ engine)
             sigmas: np.ndarray[np.float64] = linspace(SETTINGS.GRID_RESOLUTION, sigma_range[0], sigma_range[1])
             strikes: np.ndarray[np.float64] = linspace(SETTINGS.GRID_RESOLUTION, strike_range[0], strike_range[1])
+
+            # Retrieve pricing grids from the underlying C++ OptionsManager (either retrieves cached results or
+            # generates new ones)
             grids: tuple[np.ndarray[np.float64], ...] = PricingService.manager.get_greek(
                 GREEK_ENUM(greek_idx),
                 SETTINGS.GRID_RESOLUTION,

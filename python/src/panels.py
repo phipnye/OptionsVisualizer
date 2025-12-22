@@ -38,7 +38,10 @@ def create_control_panel() -> dbc.Card:
                         max=SETTINGS.SIGMA_MAX,
                         step=SETTINGS.SIGMA_STEP,
                         value=SETTINGS.SIGMA_DEFAULTS,
-                        marks={float(x): f"{x:.02f}" for x in np.linspace(SETTINGS.SIGMA_MIN, SETTINGS.SIGMA_MAX, 10)},
+                        marks={
+                            float(x): f"{x:.03f}"
+                            for x in np.linspace(0.0, np.ceil(SETTINGS.SIGMA_MAX), SETTINGS.NUM_TICKS)
+                        },
                         tooltip={"placement": "bottom", "always_visible": True},
                     ),
                     html.Hr(),
@@ -116,6 +119,7 @@ def create_control_panel() -> dbc.Card:
                     # --- Parameter summary block
                     html.Div(
                         style={"border": f"2px solid {SETTINGS.SUMMARY_COLOR}"},  # border around summary box
+                        className="text-center",
                         children=[
                             html.Strong(
                                 "Active Fixed Parameters:",
@@ -133,7 +137,11 @@ def create_control_panel() -> dbc.Card:
 def create_heatmap_grid() -> dbc.Card:
     # Dynamically generate columns based on OPTION_TYPES metadata
     plot_cols: list[dbc.Col] = [
-        dbc.Col(dcc.Graph(id=f"heatmap_{opt.id}", style={"height": "100%"}), md=6, className="h-100")
+        dbc.Col(
+            dcc.Graph(id=f"heatmap_{opt.id}", style={"height": "100%"}, config={"displaylogo": False}),
+            md=6,
+            className="h-100",
+        )
         for opt in OPTION_TYPES.values()
     ]
 
@@ -145,10 +153,14 @@ def create_heatmap_grid() -> dbc.Card:
         children=[
             dbc.CardBody(
                 className="d-flex flex-column h-100",
-                style={"minHeight": 0},
+                style={"minHeight": 0},  # essential for chrome flexbox scroll containment
                 children=[
-                    # Fixed-height header
-                    html.Div("Black-Scholes & Trinomial Option Pricing Engine Dashboard", className="text-center"),
+                    # App title
+                    html.Div(
+                        "Black-Scholes & Trinomial Option Pricing Engine Dashboard",
+                        className="text-center mb-2",
+                        style={"font-size": SETTINGS.APP_TITLE_FONT_SIZE},
+                    ),
                     # Main plot area
                     html.Div(
                         className="flex-grow-1",
