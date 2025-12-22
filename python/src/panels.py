@@ -61,6 +61,10 @@ def create_control_panel() -> dbc.Card:
                                         step=SETTINGS.SPOT_STEP,
                                         debounce=True,
                                     ),
+                                    dbc.FormFeedback(
+                                        f"Must be between {SETTINGS.SPOT_MIN} and {SETTINGS.SPOT_MAX}.",
+                                        type="invalid",
+                                    ),
                                 ],
                                 width=SETTINGS.HEATMAP_WIDTH,
                             ),
@@ -75,6 +79,10 @@ def create_control_panel() -> dbc.Card:
                                         max=SETTINGS.TAU_MAX,
                                         step=SETTINGS.TAU_STEP,
                                         debounce=True,
+                                    ),
+                                    dbc.FormFeedback(
+                                        f"Must be between {SETTINGS.TAU_MIN} and {SETTINGS.TAU_MAX}.",
+                                        type="invalid",
                                     ),
                                 ],
                                 width=SETTINGS.HEATMAP_WIDTH,
@@ -95,6 +103,10 @@ def create_control_panel() -> dbc.Card:
                                         step=SETTINGS.RATE_STEP,
                                         debounce=True,
                                     ),
+                                    dbc.FormFeedback(
+                                        f"Must be between {SETTINGS.RATE_MIN} and {SETTINGS.RATE_MAX}.",
+                                        type="invalid",
+                                    ),
                                 ],
                                 width=SETTINGS.HEATMAP_WIDTH,
                             ),
@@ -109,6 +121,10 @@ def create_control_panel() -> dbc.Card:
                                         max=SETTINGS.DIV_MAX,
                                         step=SETTINGS.DIV_STEP,
                                         debounce=True,
+                                    ),
+                                    dbc.FormFeedback(
+                                        f"Must be between {SETTINGS.DIV_MIN} and {SETTINGS.DIV_MAX}.",
+                                        type="invalid",
                                     ),
                                 ],
                                 width=SETTINGS.HEATMAP_WIDTH,

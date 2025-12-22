@@ -10,6 +10,25 @@ from slider import compute_strike_slider, StrikeSliderConfig
 
 
 def register_callbacks(app: dash.Dash) -> None:
+    # --- Highlight invalid input options
+    @app.callback(
+        [Output(f"input_{param}", "invalid") for param in ["spot", "tau", "r", "q"]],
+        [Input(f"input_{param}", "value") for param in ["spot", "tau", "r", "q"]],
+    )
+    def validate_inputs(spot: float, tau: float, r: float, q: float) -> tuple[bool, ...]:
+        def is_invalid(value: float, min_val: float, max_val: float) -> bool:
+            if value is None:
+                return True
+
+            return not (min_val <= value <= max_val)
+        
+        return (
+            is_invalid(spot, SETTINGS.SPOT_MIN, SETTINGS.SPOT_MAX),
+            is_invalid(tau, SETTINGS.TAU_MIN, SETTINGS.TAU_MAX),
+            is_invalid(r, SETTINGS.RATE_MIN, SETTINGS.RATE_MAX),
+            is_invalid(q, SETTINGS.DIV_MIN, SETTINGS.DIV_MAX),
+        )
+
     # --- Dynamically adjusts strike range based on spot price input
     @app.callback(
         [Output("strike_range", prop) for prop in ["min", "max", "value", "marks"]],
@@ -35,7 +54,7 @@ def register_callbacks(app: dash.Dash) -> None:
 
         return html.Pre(f"S = ${spot:,.2f}\nT = {tau:.2f} years\nr = {r:.2%}\nq = {q:.2%}")
 
-    # Update heatmap plots
+    # --- Update heatmap plots
     @app.callback(
         [Output(f"heatmap_{option.id}", "figure") for option in OPTION_TYPES.values()],
         [Input(f"{param}_range", "value") for param in ["sigma", "strike"]],

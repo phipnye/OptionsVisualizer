@@ -5,7 +5,7 @@ class Settings(BaseModel):
     model_config: ConfigDict = ConfigDict(frozen=True)
 
     # --- System and environment
-    DEBUG: bool = False
+    DEBUG: bool = True
     ENGINE_CAPACITY: int = 16
     PLOT_THEME: str = "darkly"
 
@@ -51,7 +51,7 @@ class Settings(BaseModel):
     # --- App colors and styling
     SUMMARY_COLOR: str = "#00BC8C"
     APP_TITLE_FONT_SIZE: int = 20
-    TICK_COLOR: str = "#9C9C9C"  # Used for slider marks and modebar icons
+    TICK_COLOR: str = "#9C9C9C"  # used for slider marks and modebar icons
 
     # --- Plotly styling
     PLOT_COLOR_SCALE: str = "thermal"
