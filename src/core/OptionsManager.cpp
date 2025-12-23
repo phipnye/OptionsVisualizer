@@ -13,21 +13,25 @@
 #include <utility>
 
 // Constructs a thread pool with as many threads as are available in the hardware
-OptionsManager::OptionsManager(std::size_t capacity) : LRUCache{std::max(capacity, 1UL)}, pool_{} {}
+OptionsManager::OptionsManager(const std::size_t capacity) : LRUCache{std::max(capacity, 1UL)}, pool_{} {
+}
 
 // Constructs a thread pool with specified number of threads
-OptionsManager::OptionsManager(std::size_t capacity, std::size_t nThreads)
-    : LRUCache{std::max(capacity, 1UL)}, pool_{std::max(nThreads, 1UL)} {}
+OptionsManager::OptionsManager(const std::size_t capacity, const std::size_t nThreads)
+    : LRUCache{std::max(capacity, 1UL)}, pool_{std::max(nThreads, 1UL)} {
+}
 
 // Retrieve cached greek values or compute new ones and cache the results
-const std::array<Eigen::MatrixXd, globals::nGrids>&
-OptionsManager::get(Eigen::DenseIndex nSigma, Eigen::DenseIndex nStrike, double spot, double r, double q,
-                    double sigmaLo, double sigmaHi, double strikeLo, double strikeHi, double tau) {
+const std::array<Eigen::MatrixXd, globals::nGrids> &
+OptionsManager::get(const Eigen::DenseIndex nSigma, const Eigen::DenseIndex nStrike, const double spot, const double r,
+                    const double q,
+                    const double sigmaLo, const double sigmaHi, const double strikeLo, const double strikeHi,
+                    const double tau) {
     const Params params{nSigma, nStrike, spot, r, q, sigmaLo, sigmaHi, strikeLo, strikeHi, tau};
 
     // Already computed the given value
-    if (auto search{cache_.find(params)}; search != cache_.cend()) {
-        const auto& [val, oldIt]{search->second};
+    if (const auto search{cache_.find(params)}; search != cache_.cend()) {
+        const auto &[val, oldIt]{search->second};
         keys_.splice(keys_.end(), keys_, oldIt);
         return val;
     }
@@ -41,7 +45,7 @@ OptionsManager::get(Eigen::DenseIndex nSigma, Eigen::DenseIndex nStrike, double 
     return cache_[params].first;
 }
 
-void OptionsManager::set(const Params& params, std::array<Eigen::MatrixXd, globals::nGrids>&& grids) {
+void OptionsManager::set(const Params &params, std::array<Eigen::MatrixXd, globals::nGrids> &&grids) {
     // No need to consider overwriting pre-existing keys since results will be identical and the result would've already
     // been returned
 

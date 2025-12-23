@@ -2,6 +2,6 @@
 #include <cstddef>
 #include <unordered_map>
 
-LRUCache::LRUCache(std::size_t capacity) : capacity_{capacity} {
+LRUCache::LRUCache(const std::size_t capacity) : capacity_{capacity} {
     cache_.reserve(capacity_);
 }

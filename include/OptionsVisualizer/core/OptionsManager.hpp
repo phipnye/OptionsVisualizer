@@ -13,7 +13,7 @@ class OptionsManager : public LRUCache {
 
 public:
     explicit OptionsManager(std::size_t capacity);
-    explicit OptionsManager(std::size_t capacity, std::size_t numThreads);
+    explicit OptionsManager(std::size_t capacity, std::size_t nThreads);
 
     const std::array<Eigen::MatrixXd, globals::nGrids>& get(Eigen::DenseIndex nSigma, Eigen::DenseIndex nStrike,
                                                             double spot, double r, double q, double sigmaLo,
@@ -22,5 +22,5 @@ public:
 
 private:
     // Set values
-    void set(const Params& params, std::array<Eigen::MatrixXd, globals::nGrids>&& value) override;
+    void set(const Params& params, std::array<Eigen::MatrixXd, globals::nGrids>&& grids) override;
 };

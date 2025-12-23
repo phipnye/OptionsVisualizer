@@ -18,5 +18,8 @@ venv/
 # VS code files
 .vscode/settings.json
 
+# CLion files
+.idea/
+
 # Docker (Ignore the final built image/artifacts)
 target/

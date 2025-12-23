@@ -6,5 +6,5 @@
     "eigen3",
     "pybind11"
   ],
-  "builtin-baseline": "b2c74683ecfd6a8e7d27ffb0df077f66a9339509"
+  "builtin-baseline": "b1b19307e2d2ec1eefbdb7ea069de7d4bcd31f01"
 }
