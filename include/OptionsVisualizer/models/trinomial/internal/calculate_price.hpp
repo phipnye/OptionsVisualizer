@@ -6,15 +6,19 @@
 #include <Eigen/Dense>
 #include <cassert>
 #include <cmath>
+#include <stdexcept>
 #include <utility>
 #include <vector>
 
 namespace models::trinomial {
 
-template <typename Derived>
+template <Enums::OptionType T>
 Eigen::MatrixXd calculatePrice(Eigen::DenseIndex nSigma, Eigen::DenseIndex nStrike, double spot, double r, double q,
-                               const Eigen::ArrayBase<Derived>& sigmasGrid, const Eigen::MatrixXd& strikesGrid,
-                               double tau, Enums::OptionType optType) {
+                               const auto& sigmasGrid, const Eigen::MatrixXd& strikesGrid,
+                               double tau) {
+    static_assert(T == Enums::OptionType::AmerCall || T == Enums::OptionType::AmerPut,
+                  "Trinomial price evaluation only expected for American options");
+
     // --- Setup
 
     // Discrete time steps
@@ -60,23 +64,21 @@ Eigen::MatrixXd calculatePrice(Eigen::DenseIndex nSigma, Eigen::DenseIndex nStri
     const Eigen::DenseIndex maxNodes{2 * trinomialDepth + 1};
     std::vector<Eigen::MatrixXd> nextOptionValues(maxNodes, Eigen::MatrixXd(nSigma, nStrike));
     std::vector<Eigen::MatrixXd> currOptionValues(maxNodes, Eigen::MatrixXd(nSigma, nStrike));
-    std::vector<Eigen::MatrixXd> exerciseValue(maxNodes, Eigen::MatrixXd(nSigma, nStrike));
 
     // Calculate option values at expiration
     const Eigen::MatrixXd expirationSpot{
         helpers::buildSpotLattice(spot, u, trinomialDepth, nSigma)}; // shape: [node, sigma]
 
     // Calculate payoff at expiration (intrinsic value only at expriation)
-    helpers::intrinsicValue(nextOptionValues, expirationSpot, strikesGrid, maxNodes, optType);
+    for (Eigen::DenseIndex node{0}; node < maxNodes; ++node) {
+        nextOptionValues[node] = helpers::intrinsicValue<T>(strikesGrid, expirationSpot.row(node).transpose());
+    }
 
     // Backward induction
     for (Eigen::DenseIndex depth{trinomialDepth - 1}; depth > -1; --depth) { // Eigen::DenseIndex (long int) is signed
         // Compute spot prices at this timestep
         const Eigen::DenseIndex nNodes{2 * depth + 1};
         const Eigen::MatrixXd spotsDepth{helpers::buildSpotLattice(spot, u, depth, nSigma)};
-
-        // Compute exercise values at this depth
-        helpers::intrinsicValue(exerciseValue, spotsDepth, strikesGrid, nNodes, optType);
 
         for (Eigen::DenseIndex node{0}; node < nNodes; ++node) {
             // Node i at current depends on nodes (i + 2, i + 1, i) (up, mid, down) from next depth
@@ -89,8 +91,12 @@ Eigen::MatrixXd calculatePrice(Eigen::DenseIndex nSigma, Eigen::DenseIndex nStri
                 (pU.array() * valUp.array() + pM.array() * valMid.array() + pD.array() * valDown.array()) *
                 discountFactor};
 
+            // Retrieve current spot values for intrinsic value
+            const auto currentSpotsCol{spotsDepth.row(node).transpose()};
+
             // Update optionValues: American early exercise check
-            currOptionValues[node] = continuationValue.cwiseMax(exerciseValue[node]);
+            currOptionValues[node] =
+                continuationValue.cwiseMax(helpers::intrinsicValue<T>(strikesGrid, spotsDepth.row(node).transpose()));
         }
 
         // Swap buffers

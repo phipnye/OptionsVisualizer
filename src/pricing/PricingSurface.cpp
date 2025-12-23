@@ -1,4 +1,5 @@
 #include "OptionsVisualizer/pricing/PricingSurface.hpp"
+#include "BS_thread_pool.hpp"
 #include "OptionsVisualizer/core/Enums.hpp"
 #include "OptionsVisualizer/core/globals.hpp"
 #include "OptionsVisualizer/core/linspace.hpp"
@@ -7,10 +8,11 @@
 #include <array>
 
 PricingSurface::PricingSurface(Eigen::DenseIndex nSigma, Eigen::DenseIndex nStrike, double spot, double r, double q,
-                               double sigmaLo, double sigmaHi, double strikeLo, double strikeHi, double tau)
+                               double sigmaLo, double sigmaHi, double strikeLo, double strikeHi, double tau,
+                               BS::thread_pool<>& pool)
     : nSigma_{nSigma}, nStrike_{nStrike}, spot_{spot}, r_{r}, q_{q},
       sigmasGrid_{linspace(nSigma_, sigmaLo, sigmaHi).replicate(1, nStrike_)},
-      strikesGrid_{linspace(nStrike_, strikeLo, strikeHi).transpose().replicate(nSigma_, 1)}, tau_{tau} {}
+      strikesGrid_{linspace(nStrike_, strikeLo, strikeHi).transpose().replicate(nSigma_, 1)}, tau_{tau}, pool_{pool} {}
 
 std::array<Eigen::MatrixXd, globals::nGrids> PricingSurface::calculateGrids() const {
     static const auto appendGreeks{
@@ -25,8 +27,8 @@ std::array<Eigen::MatrixXd, globals::nGrids> PricingSurface::calculateGrids() co
         }};
 
     // Generate results
-    GreeksResult amerCall{trinomialGreeks(Enums::OptionType::AmerCall)};
-    GreeksResult amerPut{trinomialGreeks(Enums::OptionType::AmerPut)};
+    GreeksResult amerCall{trinomialGreeks<Enums::OptionType::AmerCall>()};
+    GreeksResult amerPut{trinomialGreeks<Enums::OptionType::AmerPut>()};
     GreeksResult euroCall{bsmCallGreeks()};
     GreeksResult euroPut{bsmPutGreeks(euroCall)};
 

@@ -1,4 +1,5 @@
 #include "OptionsVisualizer/core/OptionsManager.hpp"
+#include "BS_thread_pool.hpp"
 #include "OptionsVisualizer/core/globals.hpp"
 #include "OptionsVisualizer/lru/LRUCache.hpp"
 #include "OptionsVisualizer/lru/Params.hpp"
@@ -11,8 +12,14 @@
 #include <unordered_map>
 #include <utility>
 
-OptionsManager::OptionsManager(std::size_t capacity) : LRUCache{std::max(capacity, 1UL)} {}
+// Constructs a thread pool with as many threads as are available in the hardware
+OptionsManager::OptionsManager(std::size_t capacity) : LRUCache{std::max(capacity, 1UL)}, pool_{} {}
 
+// Constructs a thread pool with specified number of threads
+OptionsManager::OptionsManager(std::size_t capacity, std::size_t nThreads)
+    : LRUCache{std::max(capacity, 1UL)}, pool_{std::max(nThreads, 1UL)} {}
+
+// Retrieve cached greek values or compute new ones and cache the results
 const std::array<Eigen::MatrixXd, globals::nGrids>&
 OptionsManager::get(Eigen::DenseIndex nSigma, Eigen::DenseIndex nStrike, double spot, double r, double q,
                     double sigmaLo, double sigmaHi, double strikeLo, double strikeHi, double tau) {
@@ -26,7 +33,7 @@ OptionsManager::get(Eigen::DenseIndex nSigma, Eigen::DenseIndex nStrike, double 
     }
 
     // Compute value if not available
-    const PricingSurface surface{nSigma, nStrike, spot, r, q, sigmaLo, sigmaHi, strikeLo, strikeHi, tau};
+    const PricingSurface surface{nSigma, nStrike, spot, r, q, sigmaLo, sigmaHi, strikeLo, strikeHi, tau, pool_};
     std::array<Eigen::MatrixXd, globals::nGrids> grids{surface.calculateGrids()};
 
     // Move the result into the cache

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "BS_thread_pool.hpp"
 #include "OptionsVisualizer/core/globals.hpp"
 #include "OptionsVisualizer/lru/LRUCache.hpp"
 #include "OptionsVisualizer/lru/Params.hpp"
@@ -8,8 +9,11 @@
 #include <cstddef>
 
 class OptionsManager : public LRUCache {
+    BS::thread_pool<> pool_;
+
 public:
     explicit OptionsManager(std::size_t capacity);
+    explicit OptionsManager(std::size_t capacity, std::size_t numThreads);
 
     const std::array<Eigen::MatrixXd, globals::nGrids>& get(Eigen::DenseIndex nSigma, Eigen::DenseIndex nStrike,
                                                             double spot, double r, double q, double sigmaLo,
