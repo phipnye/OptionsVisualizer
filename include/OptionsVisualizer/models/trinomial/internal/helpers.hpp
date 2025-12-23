@@ -9,8 +9,7 @@ namespace models::trinomial::helpers {
 Eigen::MatrixXd buildSpotLattice(double spot, const Eigen::VectorXd& u, Eigen::DenseIndex depth,
                                  Eigen::DenseIndex nSigma);
 
-std::vector<Eigen::MatrixXd> intrinsicValue(const Eigen::MatrixXd& spotsGrid, const Eigen::MatrixXd& strikesGrid,
-                                            Eigen::DenseIndex nNodes, Eigen::DenseIndex nSigma,
-                                            Eigen::DenseIndex nStrike, Enums::OptionType optType);
+void intrinsicValue(std::vector<Eigen::MatrixXd>& exerciseValue, const Eigen::MatrixXd& spotsGrid,
+                    const Eigen::MatrixXd& strikesGrid, Eigen::DenseIndex nNodes, Enums::OptionType optType);
 
 } // namespace models::trinomial::helpers

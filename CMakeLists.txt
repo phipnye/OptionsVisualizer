@@ -17,7 +17,6 @@ set(SOURCES
     src/lru/LRUCache.cpp
     src/lru/Params.cpp
     src/models/trinomial/calculate_greeks.cpp
-    src/models/trinomial/internal/calculate_price.cpp
     src/models/trinomial/internal/helpers.cpp
     src/models/bsm/calculate_greeks.cpp
 )

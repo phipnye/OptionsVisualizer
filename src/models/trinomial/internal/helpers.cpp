@@ -21,11 +21,8 @@ Eigen::MatrixXd buildSpotLattice(double spot, const Eigen::VectorXd& u, Eigen::D
     return lattice;
 }
 
-std::vector<Eigen::MatrixXd> intrinsicValue(const Eigen::MatrixXd& spotsGrid, const Eigen::MatrixXd& strikesGrid,
-                                            Eigen::DenseIndex nNodes, Eigen::DenseIndex nSigma,
-                                            Eigen::DenseIndex nStrike, Enums::OptionType optType) {
-    std::vector<Eigen::MatrixXd> intrinsic(static_cast<std::size_t>(nNodes), Eigen::MatrixXd(nSigma, nStrike));
-
+void intrinsicValue(std::vector<Eigen::MatrixXd>& exerciseValue, const Eigen::MatrixXd& spotsGrid,
+                    const Eigen::MatrixXd& strikesGrid, Eigen::DenseIndex nNodes, Enums::OptionType optType) {
     switch (optType) {
     case Enums::OptionType::AmerCall:
         for (Eigen::DenseIndex i{0}; i < nNodes; ++i) {
@@ -35,7 +32,7 @@ std::vector<Eigen::MatrixXd> intrinsicValue(const Eigen::MatrixXd& spotsGrid, co
             const auto currentSpotsCol{spotsGrid.row(i).transpose()}; // auto gives expresion template
 
             // Payoff: max(S - K, 0) (subtract spots from every strike column, then negating to get S - K)
-            intrinsic[i] = (-(strikesGrid.colwise() - currentSpotsCol)).cwiseMax(0.0);
+            exerciseValue[i] = (-(strikesGrid.colwise() - currentSpotsCol)).cwiseMax(0.0);
         }
         break;
 
@@ -44,15 +41,13 @@ std::vector<Eigen::MatrixXd> intrinsicValue(const Eigen::MatrixXd& spotsGrid, co
             const auto currentSpotsCol{spotsGrid.row(i).transpose()};
 
             // Payoff: max(K - S, 0) (subtracts the column vector from every strike column)
-            intrinsic[i] = (strikesGrid.colwise() - currentSpotsCol).cwiseMax(0.0);
+            exerciseValue[i] = (strikesGrid.colwise() - currentSpotsCol).cwiseMax(0.0);
         }
         break;
 
     default:
         throw std::logic_error("Unhandled Enums::OptionType");
     }
-
-    return intrinsic;
 }
 
 } // namespace models::trinomial::helpers

@@ -5,12 +5,12 @@ class Settings(BaseModel):
     model_config: ConfigDict = ConfigDict(frozen=True)
 
     # --- System and environment
-    DEBUG: bool = True
+    DEBUG: bool = False
     ENGINE_CAPACITY: int = 16
     PLOT_THEME: str = "darkly"
 
     # --- Core app parameters
-    GRID_RESOLUTION: int = 15  # text labels become unreadable at higher resolutions
+    GRID_RESOLUTION: int = 12  # text labels become unreadable at higher resolutions
     NUM_TICKS: int = 6  # number of visual marks on sliders
     HEATMAP_WIDTH: int = 6  # column width for individual heatmap panels
 
@@ -32,8 +32,8 @@ class Settings(BaseModel):
 
     # --- Time to maturity
     TAU_MIN: float = 0.001
-    TAU_MAX: float = 5.0
-    TAU_STEP: float = 0.01
+    TAU_MAX: float = 30.0
+    TAU_STEP: float = 0.001
     TAU_DEFAULT: float = 1.0
 
     # --- Risk-free rate
