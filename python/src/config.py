@@ -1,4 +1,5 @@
 from pydantic import BaseModel, ConfigDict
+from typing import Optional
 
 
 class Settings(BaseModel):
@@ -7,6 +8,7 @@ class Settings(BaseModel):
     # --- System and environment
     DEBUG: bool = False
     ENGINE_CAPACITY: int = 16
+    ENGINE_THREADS: Optional[int] = None
     PLOT_THEME: str = "darkly"
 
     # --- Core app parameters

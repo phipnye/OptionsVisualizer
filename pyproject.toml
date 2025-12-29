@@ -6,7 +6,7 @@ build-backend = "scikit_build_core.build"
 [tool.scikit-build]
 cmake.args = [
     # "-DCMAKE_BUILD_TYPE=Debug",
-    "-DCMAKE_TOOLCHAIN_FILE=/usr/local/vcpkg/scripts/buildsystems/vcpkg.cmake",
+    "-DCMAKE_TOOLCHAIN_FILE=/opt/vcpkg/scripts/buildsystems/vcpkg.cmake",
     "-DCMAKE_CXX_COMPILER=/usr/bin/g++"
 ]
 

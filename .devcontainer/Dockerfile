@@ -1,18 +1,34 @@
-FROM mcr.microsoft.com/devcontainers/cpp:1-ubuntu-24.04
+FROM ubuntu:24.04
 
-ARG REINSTALL_CMAKE_VERSION_FROM_SOURCE="none"
+ENV DEBIAN_FRONTEND=noninteractive
 
-# Optionally install the cmake for vcpkg
-COPY ./reinstall-cmake.sh /tmp/
+# Install system tools
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    gcc \
+    g++ \
+    cmake \
+    ninja-build \
+    gdb \
+    git \
+    curl \
+    zip \
+    unzip \
+    tar \
+    pkg-config \
+    autoconf \
+    automake \
+    autoconf-archive \
+    python3-dev \
+    python3.12-venv \
+    && rm -rf /var/lib/apt/lists/*
 
-RUN if [ "${REINSTALL_CMAKE_VERSION_FROM_SOURCE}" != "none" ]; then \
-        chmod +x /tmp/reinstall-cmake.sh && /tmp/reinstall-cmake.sh ${REINSTALL_CMAKE_VERSION_FROM_SOURCE}; \
-    fi \
-    && rm -f /tmp/reinstall-cmake.sh
+# Install vcpkg into /opt/vcpkg
+RUN git clone https://github.com/microsoft/vcpkg.git /opt/vcpkg && \
+    /opt/vcpkg/bootstrap-vcpkg.sh && \
+    chmod -R 777 /opt/vcpkg
 
-# [Optional] Uncomment this section to install additional vcpkg ports.
-# RUN su vscode -c "${VCPKG_ROOT}/vcpkg install <your-port-name-here>"
+# Set Environment Variables so CLion and CMake can find vcpkg
+ENV VCPKG_ROOT=/opt/vcpkg
 
-# [Optional] Uncomment this section to install additional packages.
- RUN apt-get update && export DEBIAN_FRONTEND=noninteractive \
-     && apt-get -y install --no-install-recommends autoconf automake autoconf-archive python3-dev python3.12-venv
+WORKDIR /home/project

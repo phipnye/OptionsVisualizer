@@ -4,12 +4,15 @@ import options_surface
 from config import SETTINGS
 from mappings import GREEK_ENUM
 from options_surface import linspace
-from time import perf_counter
 
 
 class PricingService:
     # Class handles all c++ pricing interactions
-    manager: options_surface.OptionsManager = options_surface.OptionsManager(capacity=SETTINGS.ENGINE_CAPACITY)
+    if SETTINGS.ENGINE_THREADS is None:
+        manager: options_surface.OptionsManager = options_surface.OptionsManager(capacity=SETTINGS.ENGINE_CAPACITY)
+    else:
+        manager = options_surface.OptionsManager(capacity=SETTINGS.ENGINE_CAPACITY, n_threads=SETTINGS.ENGINE_THREADS)
+
     engine_logger: logging.Logger = logging.getLogger(__name__)
 
     @staticmethod
@@ -30,7 +33,6 @@ class PricingService:
 
             # Retrieve pricing grids from the underlying C++ OptionsManager (either retrieves cached results or
             # generates new ones)
-            start = perf_counter()
             grids: tuple[np.ndarray[np.float64], ...] = PricingService.manager.get_greek(
                 GREEK_ENUM(greek_idx),
                 SETTINGS.GRID_RESOLUTION,
@@ -44,8 +46,6 @@ class PricingService:
                 strike_range[1],
                 tau,
             )
-            end = perf_counter()
-            print(f"Eval time: {end - start}")
 
         except Exception as e:
             PricingService.engine_logger.error(f"Engine failure for Greek {greek_idx}: {e}", exc_info=True)

@@ -11,7 +11,7 @@ PricingSurface::PricingSurface(const Eigen::DenseIndex nSigma, const Eigen::Dens
                                const double r, const double q,
                                const double sigmaLo, const double sigmaHi, const double strikeLo, const double strikeHi,
                                const double tau,
-                               BS::thread_pool<> &pool)
+                               BS::thread_pool<>& pool)
     : nSigma_{nSigma}, nStrike_{nStrike}, spot_{spot}, r_{r}, q_{q},
       sigmasGrid_{linspace(nSigma_, sigmaLo, sigmaHi).replicate(1, nStrike_)},
       strikesGrid_{linspace(nStrike_, strikeLo, strikeHi).transpose().replicate(nSigma_, 1)}, tau_{tau}, pool_{pool} {
@@ -19,16 +19,15 @@ PricingSurface::PricingSurface(const Eigen::DenseIndex nSigma, const Eigen::Dens
 
 std::array<Eigen::MatrixXd, globals::nGrids> PricingSurface::calculateGrids() const {
     static const auto appendGreeks{
-        [](std::array<Eigen::MatrixXd, globals::nGrids> &grids, const Enums::OptionType optType, GreeksResult &&g) {
-            const std::size_t base{Enums::idx(optType) * Enums::idx(Enums::GreekType::COUNT)};
-            grids[base + Enums::idx(Enums::GreekType::Price)] = std::move(g.price);
-            grids[base + Enums::idx(Enums::GreekType::Delta)] = std::move(g.delta);
-            grids[base + Enums::idx(Enums::GreekType::Gamma)] = std::move(g.gamma);
-            grids[base + Enums::idx(Enums::GreekType::Vega)] = std::move(g.vega);
-            grids[base + Enums::idx(Enums::GreekType::Theta)] = std::move(g.theta);
-            grids[base + Enums::idx(Enums::GreekType::Rho)] = std::move(g.rho);
-        }
-    };
+            [](std::array<Eigen::MatrixXd, globals::nGrids>& grids, const Enums::OptionType optType, GreeksResult&& g) {
+                const std::size_t base{Enums::idx(optType) * Enums::idx(Enums::GreekType::COUNT)};
+                grids[base + Enums::idx(Enums::GreekType::Price)] = std::move(g.price);
+                grids[base + Enums::idx(Enums::GreekType::Delta)] = std::move(g.delta);
+                grids[base + Enums::idx(Enums::GreekType::Gamma)] = std::move(g.gamma);
+                grids[base + Enums::idx(Enums::GreekType::Vega)] = std::move(g.vega);
+                grids[base + Enums::idx(Enums::GreekType::Theta)] = std::move(g.theta);
+                grids[base + Enums::idx(Enums::GreekType::Rho)] = std::move(g.rho);
+            }};
 
     // Generate results
     GreeksResult amerCall{trinomialGreeks<Enums::OptionType::AmerCall>()};
