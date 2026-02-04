@@ -6,19 +6,25 @@
 
 namespace models::trinomial::helpers {
 
-Eigen::MatrixXd buildSpotLattice(double spot, const Eigen::VectorXd& u,
-                                 Eigen::DenseIndex depth,
-                                 Eigen::DenseIndex nSigma);
+[[nodiscard]] Eigen::ArrayXXd buildSpotLattice(double spot,
+                                               const Eigen::ArrayXd& u,
+                                               Eigen::Index depth);
 
-template <Enums::OptionType T>
-Eigen::MatrixXd intrinsicValue(const Eigen::MatrixXd& strikesGrid,
-                               const auto& spotsCol) {
+template <Enums::OptionType OptType, typename Derived>
+[[nodiscard]] Eigen::ArrayXXd intrinsicValue(
+    const Eigen::ArrayXXd& strikesGrid,
+    const Eigen::ArrayBase<Derived>& spotsCol) {
   // Only permit for American option pricing
   static_assert(
-      T == Enums::OptionType::AmerCall || T == Enums::OptionType::AmerPut,
+      OptType == Enums::OptionType::AmerCall ||
+          OptType == Enums::OptionType::AmerPut,
       "Intrinsic value computation only expected for American options");
 
-  if constexpr (T == Enums::OptionType::AmerCall) {
+  // Make sure spotsCol is a column vector
+  static_assert(Derived::ColsAtCompileTime == 1,
+                "Expected a column vector in 'intrinsicValue'");
+
+  if constexpr (OptType == Enums::OptionType::AmerCall) {
     return (-(strikesGrid.colwise() - spotsCol)).cwiseMax(0.0);
   } else {
     return (strikesGrid.colwise() - spotsCol).cwiseMax(0.0);

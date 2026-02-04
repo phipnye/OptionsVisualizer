@@ -1,39 +1,51 @@
 #pragma once
 
-#include <Eigen/Dense>
-#include <array>
 #include <cstddef>
 #include <list>
+#include <stdexcept>
 #include <unordered_map>
 #include <utility>
 
-#include "OptionsVisualizer/core/globals.hpp"
-#include "OptionsVisualizer/lru/Params.hpp"
-#include "OptionsVisualizer/lru/ParamsHash.hpp"
-
+template <typename Key, typename StoredType, typename KeyHash>
 class LRUCache {
- protected:
   // --- Data members
-  std::size_t capacity_;
-  std::list<Params> keys_{};
-  std::unordered_map<Params,
-                     std::pair<std::array<Eigen::MatrixXd, globals::nGrids>,
-                               std::list<Params>::iterator>,
-                     ParamsHash>
+  std::unordered_map<
+      Key, std::pair<StoredType, typename std::list<Key>::iterator>, KeyHash>
       cache_{};
-
-  // Store values
-  virtual void set(const Params& params,
-                   std::array<Eigen::MatrixXd, globals::nGrids>&& value) = 0;
+  std::list<Key> keys_{};
+  std::size_t capacity_;
 
  public:
-  // Ctor and dtor
-  explicit LRUCache(std::size_t capacity);
-  virtual ~LRUCache() = default;
+  // Ctor
+  explicit LRUCache(const std::size_t capacity) : capacity_{capacity} {
+    cache_.reserve(capacity_);
+  }
 
-  // Retrieve (cached) values
-  virtual const std::array<Eigen::MatrixXd, globals::nGrids>& get(
-      Eigen::DenseIndex nSigma, Eigen::DenseIndex nStrike, double spot,
-      double r, double q, double sigmaLo, double sigmaHi, double strikeLo,
-      double strikeHi, double tau) = 0;
+  // See if a key-value pairing exists
+  [[nodiscard]] bool contains(const Key& key) const {
+    return cache_.contains(key);
+  }
+
+  // Retrieve values
+  [[nodiscard]] const StoredType& get(const Key& key) {
+    if (const auto search{cache_.find(key)}; search != cache_.cend()) {
+      const auto& [val, oldIt]{search->second};
+      keys_.splice(keys_.end(), keys_, oldIt);
+      return val;
+    }
+
+    throw std::out_of_range{"Cannot find specified key in cache"};
+  }
+
+  // Store values
+  void set(const Key& key, StoredType&& val) {
+    // Delete old values if no more space
+    if (cache_.size() == capacity_) {
+      cache_.erase(keys_.front());
+      keys_.pop_front();
+    }
+
+    keys_.push_back(key);
+    cache_.emplace(key, std::make_pair(std::move(val), std::prev(keys_.end())));
+  }
 };

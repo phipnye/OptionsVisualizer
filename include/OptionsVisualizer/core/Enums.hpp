@@ -6,27 +6,28 @@ namespace Enums {
 
 // Enums for determing type of option
 enum class GreekType : std::size_t {
-  Price = 0,
-  Delta = 1,
-  Gamma = 2,
-  Vega = 3,
-  Theta = 4,
-  Rho = 5,
-  COUNT = 6
-};
-enum class OptionType : std::size_t {
-  AmerCall = 0,
-  AmerPut = 1,
-  EuroCall = 2,
-  EuroPut = 3,
-  COUNT = 4
+  Price,
+  Delta,
+  Gamma,
+  Vega,
+  Theta,
+  Rho,
+  COUNT
 };
 
-static constexpr std::size_t idx(OptionType t) noexcept {
+enum class OptionType : std::size_t {
+  AmerCall,
+  AmerPut,
+  EuroCall,
+  EuroPut,
+  COUNT
+};
+
+[[nodiscard]] constexpr std::size_t idx(const OptionType t) noexcept {
   return static_cast<std::size_t>(t);
 }
 
-static constexpr std::size_t idx(GreekType t) noexcept {
+[[nodiscard]] constexpr std::size_t idx(const GreekType t) noexcept {
   return static_cast<std::size_t>(t);
 }
 

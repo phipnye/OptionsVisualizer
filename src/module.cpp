@@ -25,7 +25,7 @@ PYBIND11_MODULE(options_surface, m) {
   pyOptionsManager.def(
       "get_greek",
       [](OptionsManager& manager, const Enums::GreekType greekType,
-         const Eigen::DenseIndex nSigma, const Eigen::DenseIndex nStrike,
+         const Eigen::Index nSigma, const Eigen::Index nStrike,
          const double spot, const double r, const double q,
          const double sigmaLo, const double sigmaHi, const double strikeLo,
          const double strikeHi, const double tau) {
@@ -33,7 +33,7 @@ PYBIND11_MODULE(options_surface, m) {
         py::gil_scoped_release noGil{};
 
         // Get the reference to the array in the cache
-        const std::array<Eigen::MatrixXd, globals::nGrids>& grids{
+        const std::array<Eigen::ArrayXXd, globals::nGrids>& grids{
             manager.get(nSigma, nStrike, spot, r, q, sigmaLo, sigmaHi, strikeLo,
                         strikeHi, tau)};
 
@@ -47,14 +47,14 @@ PYBIND11_MODULE(options_surface, m) {
 
         for (std::size_t optIdx{0}; optIdx < nOptTypes; ++optIdx) {
           // Pass immuatable views of data to python
-          const Eigen::MatrixXd& grid{grids[optIdx * nGreeks + greekIdx]};
-          output[optIdx] = py::array_t<double>{
-              {grid.rows(), grid.cols()},  // shape
+          const Eigen::ArrayXXd& grid{grids[optIdx * nGreeks + greekIdx]};
+          output[optIdx] = py::array{
+              {grid.rows(), grid.cols()}, // shape
               {sizeof(double),
                sizeof(double) *
-                   static_cast<std::size_t>(grid.outerStride())},  // strides
-              grid.data(),        // data pointer
-              py::cast(&manager)  // owner
+               static_cast<std::size_t>(grid.outerStride())}, // strides
+              grid.data(), // data pointer
+              py::cast(&manager) // owner
           };
           output[optIdx].attr("flags").attr("writeable") = false;
         }

@@ -12,14 +12,8 @@ __pycache__/
 venv/
 .venv/
 
-# OS files
-.DS_Store
-
-# VS code files
-.vscode/settings.json
-
 # CLion files
 .idea/
 
-# Docker (Ignore the final built image/artifacts)
-target/
+# vcpkg
+vcpkg/

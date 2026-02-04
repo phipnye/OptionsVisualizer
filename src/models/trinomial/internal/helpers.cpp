@@ -5,18 +5,16 @@
 
 namespace models::trinomial::helpers {
 
-Eigen::MatrixXd buildSpotLattice(const double spot, const Eigen::VectorXd& u,
-                                 const Eigen::DenseIndex depth,
-                                 const Eigen::DenseIndex nSigma) {
-  const Eigen::DenseIndex nNodes{2 * depth + 1};
-  Eigen::MatrixXd lattice(nNodes, nSigma);
+Eigen::ArrayXXd buildSpotLattice(const double spot, const Eigen::ArrayXd& u,
+                                 const Eigen::Index depth) {
+  // Create the exponents: [-depth, ..., 0, ..., depth]
+  const Eigen::Index nNodes{2 * depth + 1};
+  const double depDbl{static_cast<double>(depth)};
+  Eigen::ArrayXd exponents{Eigen::ArrayXd::LinSpaced(nNodes, -depDbl, depDbl)};
 
-  for (Eigen::DenseIndex node{0}; node < nNodes; ++node) {
-    // Each row is a node, columns are sigmas
-    lattice.row(node) = spot * u.array().pow(static_cast<double>(node - depth));
-  }
-
-  return lattice;
+  // Use log math to create the grid: exp(log(u) * exponents)
+  return spot *
+         (exponents.matrix() * u.log().matrix().transpose()).array().exp();
 }
 
 }  // namespace models::trinomial::helpers

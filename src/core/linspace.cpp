@@ -2,7 +2,7 @@
 
 #include <Eigen/Dense>
 
-Eigen::VectorXd linspace(const Eigen::DenseIndex size, const double lo,
-                         const double hi) {
-  return Eigen::VectorXd::LinSpaced(size, lo, hi);
+Eigen::ArrayXd linspace(const Eigen::Index size, const double lo,
+                        const double hi) {
+  return Eigen::ArrayXd::LinSpaced(size, lo, hi);
 }
