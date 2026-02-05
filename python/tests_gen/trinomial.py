@@ -61,8 +61,8 @@ def trinomial(s: np.ndarray, k: np.ndarray, t: np.ndarray, r: np.ndarray, q: np.
     # Copy from C++
     h_spot: np.ndarray = s * 0.05
     h_tau: np.ndarray = t * 0.01
-    h_sigma: float = 0.01
-    h_rho: float = 0.01
+    h_rho: np.ndarray = r * 0.01
+    h_sigma: np.ndarray = sigma * 0.01
 
     # Base price
     base: np.ndarray = _trinomial_price(s, k, t, r, q, sigma, option)

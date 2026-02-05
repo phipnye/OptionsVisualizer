@@ -17,13 +17,13 @@ class Settings(BaseModel):
     HEATMAP_WIDTH: int = 6  # column width for individual heatmap panels
 
     # --- Spot and strike
-    SPOT_MIN: float = 0.01
+    SPOT_MIN: float = 1.0
     SPOT_MAX: float = 10000.0
     SPOT_STEP: float = 0.01
     SPOT_DEFAULT: float = 100.0
 
     STRIKE_VAL_PCTS: list[float] = [0.8, 1.2]  # default window: +/- 20%
-    STRIKE_RANGE_PCTS: list[float] = [0.5, 1.5]  # psermitted range: +/- 50%
+    STRIKE_RANGE_PCTS: list[float] = [0.5, 1.5]  # permitted range: +/- 50%
     STRIKE_STEP: float = 0.1
 
     # --- Volatility
@@ -34,7 +34,7 @@ class Settings(BaseModel):
 
     # --- Time to maturity
     TAU_MIN: float = 0.001
-    TAU_MAX: float = 30.0
+    TAU_MAX: float = 3.0
     TAU_STEP: float = 0.001
     TAU_DEFAULT: float = 1.0
 
@@ -67,8 +67,8 @@ class Settings(BaseModel):
     # --- String formatting
     PREC_STANDARD: str = ".2f"
     PREC_GAMMA: str = ".4f"  # higher precision required for gamma sensitivity
-    X_AXIS_FORMAT: str = ".0f"
-    Y_AXIS_FORMAT: str = ".2f"
+    X_AXIS_FORMAT: str = ".2f"
+    Y_AXIS_FORMAT: str = ".1%"
 
 
 SETTINGS: Settings = Settings()

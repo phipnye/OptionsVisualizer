@@ -9,6 +9,18 @@
 #include <string>
 #include <string_view>
 
+[[nodiscard]] inline Eigen::Index getTestSize(const std::string_view file) {
+  std::ifstream in{std::filesystem::path{file}};
+
+  if (!in.is_open()) {
+    throw std::runtime_error{"Unable to open file: " + std::string{file}};
+  }
+
+  Eigen::Index testSize;
+  in >> testSize;
+  return testSize;
+}
+
 // Assume we know the number of rows and columns so we don't have to use a
 // vector and then steal the buffers
 [[nodiscard]] inline Eigen::ArrayXXd readCSV(const std::string_view file,

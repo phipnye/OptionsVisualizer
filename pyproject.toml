@@ -12,7 +12,7 @@ cmake.args = [
 
 [project]
 # Name used when installing the package via pip
-name = "options-visualizer-surface"
+name = "cpp-pricing-engine"
 version = "1.0.4"
 description = "High-performance option pricing surfaces and greeks using C++ and pybind11."
 

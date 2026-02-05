@@ -12,7 +12,7 @@
 #include "OptionsVisualizer/core/linspace.hpp"
 namespace py = pybind11;
 
-PYBIND11_MODULE(options_surface, m) {
+PYBIND11_MODULE(CppPricingEngine, m) {
   // --- OptionsManager class
   py::class_<OptionsManager> pyOptionsManager{m, "OptionsManager"};
 

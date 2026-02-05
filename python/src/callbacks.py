@@ -1,12 +1,14 @@
 import dash
 import numpy as np
 from config import SETTINGS
-from dash import exceptions, html, Input, Output
+from dash import html, Input, Output
+from dash.exceptions import PreventUpdate
 from mappings import GREEK_ENUM, OPTION_TYPES
 from plotly.graph_objects import Figure
 from plotting import generate_heatmap_figure
 from services import PricingService
 from slider import compute_strike_slider, StrikeSliderConfig
+from validate import all_valid, is_valid_value
 
 
 def register_callbacks(app: dash.Dash) -> None:
@@ -16,17 +18,11 @@ def register_callbacks(app: dash.Dash) -> None:
         [Input(f"input_{param}", "value") for param in ["spot", "tau", "r", "q"]],
     )
     def validate_inputs(spot: float, tau: float, r: float, q: float) -> tuple[bool, ...]:
-        def is_invalid(value: float, min_val: float, max_val: float) -> bool:
-            if value is None:
-                return True
-
-            return not (min_val <= value <= max_val)
-        
         return (
-            is_invalid(spot, SETTINGS.SPOT_MIN, SETTINGS.SPOT_MAX),
-            is_invalid(tau, SETTINGS.TAU_MIN, SETTINGS.TAU_MAX),
-            is_invalid(r, SETTINGS.RATE_MIN, SETTINGS.RATE_MAX),
-            is_invalid(q, SETTINGS.DIV_MIN, SETTINGS.DIV_MAX),
+            not is_valid_value("spot", spot),
+            not is_valid_value("tau", tau),
+            not is_valid_value("r", r),
+            not is_valid_value("q", q),
         )
 
     # --- Dynamically adjusts strike range based on spot price input
@@ -35,8 +31,8 @@ def register_callbacks(app: dash.Dash) -> None:
         Input("input_spot", "value"),
     )
     def update_strike_and_spot(spot: float) -> tuple[float, float, list[float], dict]:
-        if spot is None:
-            raise exceptions.PreventUpdate
+        if not all_valid(spot=spot):
+            raise PreventUpdate
 
         # Re-calculates slider bounds and tick marks relative to new spot price
         cfg: StrikeSliderConfig = compute_strike_slider(spot)
@@ -49,8 +45,8 @@ def register_callbacks(app: dash.Dash) -> None:
     )
     def update_param_summary(spot: float, tau: float, r: float, q: float) -> html.Pre:
         # Prevent update if numeric inputs are cleared or fall out of min/max range
-        if any(v is None for v in (spot, tau, r, q)):
-            raise exceptions.PreventUpdate
+        if not all_valid(spot=spot, tau=tau, r=r, q=q):
+            raise PreventUpdate
 
         return html.Pre(f"S = ${spot:,.2f}\nT = {tau:.2f} years\nr = {r:.2%}\nq = {q:.2%}")
 
@@ -61,23 +57,22 @@ def register_callbacks(app: dash.Dash) -> None:
         [Input(param, "value") for param in ["greek_selector", "input_spot", "input_tau", "input_r", "input_q"]],
     )
     def update_heatmaps(
-        sigma_range: list[float],
-        strike_range: list[float],
-        greek_selector: str,
-        spot: float,
-        tau: float,
-        r: float,
-        q: float,
+            sigma_range: list[float],
+            strike_range: list[float],
+            greek_selector: str,
+            spot: float,
+            tau: float,
+            r: float,
+            q: float,
     ) -> tuple[Figure, ...]:
-        # Prevent update if numeric inputs are cleared or fall out of min/max range
-        if any(v is None for v in (greek_selector, strike_range, sigma_range, spot, tau, r, q)):
-            raise exceptions.PreventUpdate
+        if not all_valid(sigma_range=sigma_range, strike_range=strike_range, spot=spot, tau=tau, r=r, q=q):
+            raise PreventUpdate
 
         try:
             greek_idx: int = int(greek_selector)
-            grids: tuple[np.ndarray[np.float64], ...]
-            strikes: np.ndarray[np.float64]
-            sigmas: np.ndarray[np.float64]
+            grids: tuple[np.ndarray, ...]
+            strikes: np.ndarray
+            sigmas: np.ndarray
 
             # C++ engine call returns a grid for each option type (American and Europena put and call)
             grids, strikes, sigmas = PricingService.calculate_greeks(

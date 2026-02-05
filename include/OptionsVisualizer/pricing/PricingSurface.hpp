@@ -30,10 +30,10 @@ class PricingSurface {
   // Define a simple struct to hold small perturbations for spot, sigma, and
   // tau
   struct Perturb {
-    double dSpot_{0.0};   // perturbation in spot price
-    double dSigma_{0.0};  // perturbation in volatility (sigma)
-    double dTau_{0.0};    // perturbation in time to expiry (tau)
-    double dRho_{0.0};    // perturbation in risk-free rate (rho)
+    double dSpot_{0.0};      // perturbation in spot price
+    double dTau_{0.0};       // perturbation in time to expiry (tau)
+    double dRho_{0.0};       // perturbation in risk-free rate (rho)
+    double sigmaMult_{1.0};  // perturbation multiplier in volatility (sigma)
     enum class Idx : std::size_t {
       Base,
       LoSpot,
@@ -80,11 +80,16 @@ class PricingSurface {
             OptType == Enums::OptionType::AmerPut,
         "Trinomial greeks calculation only expected for American options");
 
-    // Epsilons to estimate derviates using finite differences
-    const double hSpot{spot_ * 0.05};
-    const double hTau{tau_ * 0.01};
-    constexpr double hSigma{0.01};  // 1% shift for volatility
-    constexpr double hRho{0.01};    // 100 basis points shift for risk-free rate
+    // Relative epsilons to estimate derviates using finite differences (a
+    // larger relative percentage is used for the spot price since we use it for
+    // second order derivatives and small perturbations lead to "jagged" results
+    // across the grid of strike x sigma)
+    const double dSpot{spot_ * 0.05};
+    const double dTau{tau_ * 0.01};
+    const double dRho{r_ * 0.01};
+
+    // Use a relative percentage shift for the grid of sigmas
+    constexpr double sigmaShift{0.01};
 
     // --- Compute prices
 
@@ -94,20 +99,20 @@ class PricingSurface {
         Perturb{.idx_ = Perturb::Idx::Base},
 
         // Spot perturbations for delta and gamma
-        Perturb{.dSpot_ = -hSpot, .idx_ = Perturb::Idx::LoSpot},
-        Perturb{.dSpot_ = hSpot, .idx_ = Perturb::Idx::HiSpot},
+        Perturb{.dSpot_ = -dSpot, .idx_ = Perturb::Idx::LoSpot},
+        Perturb{.dSpot_ = dSpot, .idx_ = Perturb::Idx::HiSpot},
 
         // Sigma perturbations for vega
-        Perturb{.dSigma_ = -hSigma, .idx_ = Perturb::Idx::LoSigma},
-        Perturb{.dSigma_ = hSigma, .idx_ = Perturb::Idx::HiSigma},
+        Perturb{.sigmaMult_ = 1.0 - sigmaShift, .idx_ = Perturb::Idx::LoSigma},
+        Perturb{.sigmaMult_ = 1.0 + sigmaShift, .idx_ = Perturb::Idx::HiSigma},
 
         // Tau perturbations for theta
-        Perturb{.dTau_ = -hTau, .idx_ = Perturb::Idx::LoTau},
-        Perturb{.dTau_ = hTau, .idx_ = Perturb::Idx::HiTau},
+        Perturb{.dTau_ = -dTau, .idx_ = Perturb::Idx::LoTau},
+        Perturb{.dTau_ = dTau, .idx_ = Perturb::Idx::HiTau},
 
         // Risk-free rate perturbations for rho
-        Perturb{.dRho_ = -hRho, .idx_ = Perturb::Idx::LoRho},
-        Perturb{.dRho_ = hRho, .idx_ = Perturb::Idx::HiRho}};
+        Perturb{.dRho_ = -dRho, .idx_ = Perturb::Idx::LoRho},
+        Perturb{.dRho_ = dRho, .idx_ = Perturb::Idx::HiRho}};
 
     // Prepare a vector to hold futures for asynchronous price calculations
     std::vector<std::future<Eigen::ArrayXXd>> futures{};
@@ -122,7 +127,7 @@ class PricingSurface {
             this->spot_ + p.dSpot_,  // perturbed spot
             this->r_ + p.dRho_,      // perturbed risk-free rate
             this->q_,
-            (this->sigmasGrid_ + p.dSigma_),  // perturbed sigmas
+            this->sigmasGrid_ * p.sigmaMult_,  // perturbed sigmas
             this->strikesGrid_,
             this->tau_ + p.dTau_);  // perturbed time
       }));
@@ -141,10 +146,11 @@ class PricingSurface {
     // delta = (price(spot + dSpot) - price(spot - dSpot)) / (2 * dSpot)
     Eigen::ArrayXXd delta{
         firstOrderCdm(prices[Perturb::idx(Perturb::Idx::LoSpot)],
-                      prices[Perturb::idx(Perturb::Idx::HiSpot)], hSpot)};
+                      prices[Perturb::idx(Perturb::Idx::HiSpot)], dSpot)};
 
     // Compute vega (first derivative w.r.t sigma) using CDM
     // vega = (price(sigma + dSigma) - price(sigma - dSigma)) / (2 * dSigma)
+    const auto hSigma{sigmasGrid_ * sigmaShift};
     Eigen::ArrayXXd vega{
         firstOrderCdm(prices[Perturb::idx(Perturb::Idx::LoSigma)],
                       prices[Perturb::idx(Perturb::Idx::HiSigma)], hSigma)};
@@ -153,13 +159,13 @@ class PricingSurface {
     // theta = -(price(tau + dTau) - price(tau - dTau)) / (2 * dTau)
     Eigen::ArrayXXd theta{
         -firstOrderCdm(prices[Perturb::idx(Perturb::Idx::LoTau)],
-                       prices[Perturb::idx(Perturb::Idx::HiTau)], hTau)};
+                       prices[Perturb::idx(Perturb::Idx::HiTau)], dTau)};
 
     // Compute rho (first derivate w.r.t r) using CDM
     // rho = (price(r + dR) - price(r - dR)) / (2 * dR)
     Eigen::ArrayXXd rho{firstOrderCdm(prices[Perturb::idx(Perturb::Idx::LoRho)],
                                       prices[Perturb::idx(Perturb::Idx::HiRho)],
-                                      hRho)};
+                                      dRho)};
 
     // --- Second-order derivatives (gamma)
 
@@ -169,7 +175,7 @@ class PricingSurface {
     Eigen::ArrayXXd gamma{
         secondOrderCdm(prices[Perturb::idx(Perturb::Idx::LoSpot)],
                        prices[Perturb::idx(Perturb::Idx::Base)],
-                       prices[Perturb::idx(Perturb::Idx::HiSpot)], hSpot)};
+                       prices[Perturb::idx(Perturb::Idx::HiSpot)], dSpot)};
 
     return GreeksResult{std::move(prices[Perturb::idx(Perturb::Idx::Base)]),
                         std::move(delta),
@@ -180,18 +186,20 @@ class PricingSurface {
   }
 
   // --- Helpers to compute first and second order derivatives using central
-  // difference method
+  // difference method (templated to handle array or scalar epsilons)
 
+  template <typename T>
   static Eigen::ArrayXXd firstOrderCdm(const Eigen::ArrayXXd& lo,
                                        const Eigen::ArrayXXd& hi,
-                                       const double eps) {
+                                       const T& eps) {
     return (hi - lo) / (2.0 * eps);
   }
 
+  template <typename T>
   static Eigen::ArrayXXd secondOrderCdm(const Eigen::ArrayXXd& lo,
                                         const Eigen::ArrayXXd& base,
                                         const Eigen::ArrayXXd& hi,
-                                        const double eps) {
+                                        const T& eps) {
     return (hi - (2.0 * base) + lo) / (eps * eps);
   }
 };

@@ -45,10 +45,10 @@ target_link_libraries(PricingEngineCore PUBLIC Eigen3::Eigen)
 # Pybind dependency
 find_package(Python3 COMPONENTS Interpreter Development REQUIRED)
 find_package(pybind11 CONFIG REQUIRED)
-Python3_add_library(PyPricingEngineModule src/module.cpp)
+Python3_add_library(CppPricingEngine src/module.cpp)
 target_link_libraries(PricingEngineCore PUBLIC pybind11::module)
-target_link_libraries(PyPricingEngineModule PRIVATE PricingEngineCore)
-install(TARGETS PyPricingEngineModule DESTINATION .)
+target_link_libraries(CppPricingEngine PRIVATE PricingEngineCore)
+install(TARGETS CppPricingEngine DESTINATION .)
 
 # --- Tests
 enable_testing()

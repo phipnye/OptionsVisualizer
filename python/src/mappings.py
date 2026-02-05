@@ -1,10 +1,10 @@
+import CppPricingEngine
 import enum
-import options_surface
 from typing import NamedTuple
 
 # Enums exported from C++ to match indexing logic
-GREEK_ENUM: enum.Enum = options_surface.OptionsManager.GreekType
-OPT_ENUM: enum.Enum = options_surface.OptionsManager.OptionType
+GREEK_ENUM: enum.Enum = CppPricingEngine.OptionsManager.GreekType
+OPT_ENUM: enum.Enum = CppPricingEngine.OptionsManager.OptionType
 
 # Make sure we're not missing enum options
 assert GREEK_ENUM.COUNT.value == GREEK_ENUM.Rho.value + 1, "Missing greek type enums value(s)"
