@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.22)
-project(OptionsSurfaceModule VERSION 1.0.4 LANGUAGES CXX)
+project(PricingEngineModule VERSION 1.0.4 LANGUAGES CXX)
 
 # --- Set the standard
 set(CMAKE_CXX_STANDARD 20)
@@ -7,7 +7,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-# --- Common sources
+# --- Common source files
 set(SOURCES
         src/pricing/PricingSurface.cpp
         src/pricing/GreeksResult.cpp
@@ -16,12 +16,11 @@ set(SOURCES
         src/params/PricingParamsHash.cpp
         src/params/PricingParams.cpp
         src/models/trinomial/internal/helpers.cpp
-        src/models/bsm/calculate_greeks.cpp
-)
+        src/models/bsm/calculate_greeks.cpp)
 
 # --- Static library for shared code
-add_library(optionsSurfaceCore STATIC ${SOURCES})
-target_compile_options(optionsSurfaceCore PUBLIC
+add_library(PricingEngineCore STATIC ${SOURCES})
+target_compile_options(PricingEngineCore PUBLIC
         -Wall
         -Wextra
         -Wshadow
@@ -33,27 +32,31 @@ target_compile_options(optionsSurfaceCore PUBLIC
         -Werror
         -fPIC
 )
-target_include_directories(optionsSurfaceCore PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
+target_include_directories(PricingEngineCore PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
 # BS thread pool dependency
 find_path(BSHOSHANY_THREAD_POOL_INCLUDE_DIRS "BS_thread_pool.hpp")
-target_include_directories(optionsSurfaceCore PUBLIC ${BSHOSHANY_THREAD_POOL_INCLUDE_DIRS})
+target_include_directories(PricingEngineCore PUBLIC ${BSHOSHANY_THREAD_POOL_INCLUDE_DIRS})
 
 # Eigen dependency
 find_package(Eigen3 CONFIG REQUIRED)
-target_link_libraries(optionsSurfaceCore PUBLIC Eigen3::Eigen)
+target_link_libraries(PricingEngineCore PUBLIC Eigen3::Eigen)
 
 # Pybind dependency
 find_package(Python3 COMPONENTS Interpreter Development REQUIRED)
 find_package(pybind11 CONFIG REQUIRED)
-Python3_add_library(options_surface src/module.cpp)
-target_link_libraries(optionsSurfaceCore PUBLIC pybind11::module)
-target_link_libraries(options_surface PRIVATE optionsSurfaceCore)
-install(TARGETS options_surface DESTINATION .)
+Python3_add_library(PyPricingEngineModule src/module.cpp)
+target_link_libraries(PricingEngineCore PUBLIC pybind11::module)
+target_link_libraries(PyPricingEngineModule PRIVATE PricingEngineCore)
+install(TARGETS PyPricingEngineModule DESTINATION .)
 
-# --- Test executable
-add_executable(optionsSurfaceTest tests/options_surface_test.cpp)
-target_link_libraries(optionsSurfaceTest PRIVATE optionsSurfaceCore)
+# --- Tests
+enable_testing()
+find_package(GTest CONFIG REQUIRED)
+add_executable(PricingEngineTests tests/validate_results.cpp)
+target_link_libraries(PricingEngineTests PRIVATE PricingEngineCore GTest::gtest_main)
+add_test(NAME PricingEngineTests COMMAND PricingEngineTests)
+target_compile_definitions(PricingEngineTests PRIVATE TEST_DATA_PATH="${CMAKE_CURRENT_SOURCE_DIR}/tests/data/")
 
 # --- Debug / Sanitizer flags
 set(SANITIZER_FLAGS
@@ -66,13 +69,8 @@ set(SANITIZER_FLAGS
         -fsanitize=null
 )
 
-# Apply sanitizer flags to both targets
-foreach(tgt optionsSurfaceCore options_surface optionsSurfaceTest)
-    target_compile_options(${tgt} PRIVATE
-            $<$<CONFIG:Debug>:-O0 -g>
-            $<$<CONFIG:Debug>:${SANITIZER_FLAGS}>
-    )
-    target_link_options(${tgt} PRIVATE
-            $<$<CONFIG:Debug>:${SANITIZER_FLAGS}>
-    )
-endforeach()
+# Apply sanitizer flags and debugging compilation flags
+foreach (tgt PricingEngineCore PricingEngineTests)
+    target_compile_options(${tgt} PRIVATE  $<$<CONFIG:Debug>:-O0 -g ${SANITIZER_FLAGS}>)
+    target_link_options(${tgt} PRIVATE $<$<CONFIG:Debug>:${SANITIZER_FLAGS}>)
+endforeach ()

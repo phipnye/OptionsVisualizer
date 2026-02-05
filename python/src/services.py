@@ -51,4 +51,4 @@ class PricingService:
             PricingService.engine_logger.error(f"Engine failure for Greek {greek_idx}: {e}", exc_info=True)
             raise e
 
-        return (grids, strikes, sigmas)
+        return grids, strikes, sigmas

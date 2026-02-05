@@ -14,6 +14,8 @@
 #include "OptionsVisualizer/pricing/GreeksResult.hpp"
 
 class PricingSurface {
+  using GridArray = std::array<Eigen::ArrayXXd, globals::nGrids>;
+
   // --- Data-members
   const Eigen::ArrayXXd sigmasGrid_;
   const Eigen::ArrayXXd strikesGrid_;
@@ -45,8 +47,8 @@ class PricingSurface {
       Count
     } idx_;
 
-    [[nodiscard]] static constexpr std::size_t getIdx(Idx idx) {
-      return static_cast<std::size_t>(idx);
+    [[nodiscard]] static constexpr std::size_t idx(Idx i) {
+      return static_cast<std::size_t>(i);
     }
   };
 
@@ -56,9 +58,12 @@ class PricingSurface {
                  double strikeLo, double strikeHi, double tau,
                  BS::thread_pool<>& pool);
 
+  // Helper to append greek results together
+  static void appendGreeks(GridArray& grids, Enums::OptionType optType,
+                           GreeksResult&& g);
+
   // Compute grids for all greeks and option types
-  [[nodiscard]] std::array<Eigen::ArrayXXd, globals::nGrids> calculateGrids()
-      const;
+  [[nodiscard]] GridArray calculateGrids() const;
 
  private:
   // --- Black-Scholes-Merton
@@ -124,64 +129,69 @@ class PricingSurface {
     }
 
     // Retrieve the computed prices from the futures
-    std::vector<Eigen::ArrayXXd> prices(Perturb::getIdx(Perturb::Idx::Count));
+    std::vector<Eigen::ArrayXXd> prices(Perturb::idx(Perturb::Idx::Count));
 
     for (std::size_t pIdx{0}; pIdx < perturbations.size(); ++pIdx) {
-      prices[Perturb::getIdx(perturbations[pIdx].idx_)] = futures[pIdx].get();
+      prices[Perturb::idx(perturbations[pIdx].idx_)] = futures[pIdx].get();
     }
 
     // --- First-order derivatives (delta, vega, theta, rho)
 
-    const auto firstOrderCDM{[](const Eigen::ArrayXXd& lo,
-                                const Eigen::ArrayXXd& hi,
-                                const double eps) -> Eigen::ArrayXXd {
-      return (hi - lo) / (2.0 * eps);
-    }};
-
     // Compute delta (first derivative w.r.t spot) using CDM
     // delta = (price(spot + dSpot) - price(spot - dSpot)) / (2 * dSpot)
     Eigen::ArrayXXd delta{
-        firstOrderCDM(prices[Perturb::getIdx(Perturb::Idx::LoSpot)],
-                      prices[Perturb::getIdx(Perturb::Idx::HiSpot)], hSpot)};
+        firstOrderCdm(prices[Perturb::idx(Perturb::Idx::LoSpot)],
+                      prices[Perturb::idx(Perturb::Idx::HiSpot)], hSpot)};
 
     // Compute vega (first derivative w.r.t sigma) using CDM
     // vega = (price(sigma + dSigma) - price(sigma - dSigma)) / (2 * dSigma)
     Eigen::ArrayXXd vega{
-        firstOrderCDM(prices[Perturb::getIdx(Perturb::Idx::LoSigma)],
-                      prices[Perturb::getIdx(Perturb::Idx::HiSigma)], hSigma)};
+        firstOrderCdm(prices[Perturb::idx(Perturb::Idx::LoSigma)],
+                      prices[Perturb::idx(Perturb::Idx::HiSigma)], hSigma)};
 
     // Compute theta (negative first derivative w.r.t tau) using CDM
     // theta = -(price(tau + dTau) - price(tau - dTau)) / (2 * dTau)
     Eigen::ArrayXXd theta{
-        -firstOrderCDM(prices[Perturb::getIdx(Perturb::Idx::LoTau)],
-                       prices[Perturb::getIdx(Perturb::Idx::HiTau)], hTau)};
+        -firstOrderCdm(prices[Perturb::idx(Perturb::Idx::LoTau)],
+                       prices[Perturb::idx(Perturb::Idx::HiTau)], hTau)};
 
     // Compute rho (first derivate w.r.t r) using CDM
-    Eigen::ArrayXXd rho{
-        firstOrderCDM(prices[Perturb::getIdx(Perturb::Idx::LoRho)],
-                      prices[Perturb::getIdx(Perturb::Idx::HiRho)], hRho)};
+    // rho = (price(r + dR) - price(r - dR)) / (2 * dR)
+    Eigen::ArrayXXd rho{firstOrderCdm(prices[Perturb::idx(Perturb::Idx::LoRho)],
+                                      prices[Perturb::idx(Perturb::Idx::HiRho)],
+                                      hRho)};
 
     // --- Second-order derivatives (gamma)
-
-    const auto secondOrderCDM{
-        [](const Eigen::ArrayXXd& lo, const Eigen::ArrayXXd& base,
-           const Eigen::ArrayXXd& hi, const double eps) -> Eigen::ArrayXXd {
-          return (hi - (2.0 * base) + lo) / (eps * eps);
-        }};
 
     // Compute gamma (second derivative w.r.t spot) using CDM
     // gamma = (price(spot + dSpot) - 2 * price(spot) + price(spot - dSpot)) /
     // (dSpot ^ 2)
     Eigen::ArrayXXd gamma{
-        secondOrderCDM(prices[Perturb::getIdx(Perturb::Idx::LoSpot)],
-                       prices[Perturb::getIdx(Perturb::Idx::Base)],
-                       prices[Perturb::getIdx(Perturb::Idx::HiSpot)], hSpot)};
+        secondOrderCdm(prices[Perturb::idx(Perturb::Idx::LoSpot)],
+                       prices[Perturb::idx(Perturb::Idx::Base)],
+                       prices[Perturb::idx(Perturb::Idx::HiSpot)], hSpot)};
 
-    return GreeksResult{std::move(prices[Perturb::getIdx(Perturb::Idx::Base)]),
+    return GreeksResult{std::move(prices[Perturb::idx(Perturb::Idx::Base)]),
                         std::move(delta),
                         std::move(gamma),
                         std::move(vega),
                         std::move(theta),
                         std::move(rho)};
+  }
+
+  // --- Helpers to compute first and second order derivatives using central
+  // difference method
+
+  static Eigen::ArrayXXd firstOrderCdm(const Eigen::ArrayXXd& lo,
+                                       const Eigen::ArrayXXd& hi,
+                                       const double eps) {
+    return (hi - lo) / (2.0 * eps);
+  }
+
+  static Eigen::ArrayXXd secondOrderCdm(const Eigen::ArrayXXd& lo,
+                                        const Eigen::ArrayXXd& base,
+                                        const Eigen::ArrayXXd& hi,
+                                        const double eps) {
+    return (hi - (2.0 * base) + lo) / (eps * eps);
   }
 };

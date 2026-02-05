@@ -6,6 +6,9 @@ from typing import NamedTuple
 GREEK_ENUM: enum.Enum = options_surface.OptionsManager.GreekType
 OPT_ENUM: enum.Enum = options_surface.OptionsManager.OptionType
 
+# Make sure we're not missing enum options
+assert GREEK_ENUM.COUNT.value == GREEK_ENUM.Rho.value + 1, "Missing greek type enums value(s)"
+assert OPT_ENUM.COUNT.value == OPT_ENUM.EuroPut.value + 1, "Missing option type enums value(s)"
 
 class OptionTypeEntry(NamedTuple):
     label: str

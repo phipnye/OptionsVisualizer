@@ -17,3 +17,6 @@ venv/
 
 # vcpkg
 vcpkg/
+
+# Test data generated in python
+tests/data

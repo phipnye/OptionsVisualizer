@@ -2,6 +2,7 @@
 
 #include <Eigen/Dense>
 #include <cmath>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
@@ -78,6 +79,11 @@ template <Enums::OptionType OptType>
 
   // Backward induction
   for (Eigen::Index depth{trinomialDepth - 1}; depth > -1; --depth) {
+    // Need depth to be signed for loop to behave properly
+    static_assert(
+        std::is_signed_v<decltype(depth)>,
+        "Expected a signed type for depth in trinomial price calculation");
+
     // Compute spot prices at this timestep
     const Eigen::ArrayXXd spotsDepth{helpers::buildSpotLattice(spot, u, depth)};
     const Eigen::Index nNodes{2 * depth + 1};

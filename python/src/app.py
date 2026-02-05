@@ -9,14 +9,12 @@ from panels import create_control_panel, create_heatmap_grid
 def create_layout() -> dbc.Container:
     return dbc.Container(
         fluid=True,
-        className="vh-100 d-flex flex-column",  # vh-100 and flex-column ensure the app locks to the browser window size
+        className="vh-100 d-flex flex-column",
         children=[
             dbc.Row(
-                className="flex-grow-1",  # expands row to fill remaining vertical space
+                className="flex-grow-1",
                 children=[
-                    # Side panel occupies 3/12 columns on medium+ screens
                     dbc.Col(create_control_panel(), md=3, className="h-100"),
-                    # Heatmaps occupy 9/12 columns
                     dbc.Col(create_heatmap_grid(), md=9, className="h-100"),
                 ],
             )

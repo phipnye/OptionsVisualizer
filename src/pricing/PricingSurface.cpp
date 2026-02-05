@@ -27,21 +27,21 @@ PricingSurface::PricingSurface(const Eigen::Index nSigma,
       tau_{tau},
       pool_{pool} {}
 
+void PricingSurface::appendGreeks(GridArray& grids,
+                                  const Enums::OptionType optType,
+                                  GreeksResult&& g) {
+  const std::size_t base{Enums::idx(optType) *
+                         Enums::idx(Enums::GreekType::COUNT)};
+  grids[base + Enums::idx(Enums::GreekType::Price)] = std::move(g.price_);
+  grids[base + Enums::idx(Enums::GreekType::Delta)] = std::move(g.delta_);
+  grids[base + Enums::idx(Enums::GreekType::Gamma)] = std::move(g.gamma_);
+  grids[base + Enums::idx(Enums::GreekType::Vega)] = std::move(g.vega_);
+  grids[base + Enums::idx(Enums::GreekType::Theta)] = std::move(g.theta_);
+  grids[base + Enums::idx(Enums::GreekType::Rho)] = std::move(g.rho_);
+}
+
 std::array<Eigen::ArrayXXd, globals::nGrids> PricingSurface::calculateGrids()
     const {
-  const auto appendGreeks{
-      [](std::array<Eigen::ArrayXXd, globals::nGrids>& grids,
-         const Enums::OptionType optType, GreeksResult&& g) {
-        const std::size_t base{Enums::idx(optType) *
-                               Enums::idx(Enums::GreekType::COUNT)};
-        grids[base + Enums::idx(Enums::GreekType::Price)] = std::move(g.price_);
-        grids[base + Enums::idx(Enums::GreekType::Delta)] = std::move(g.delta_);
-        grids[base + Enums::idx(Enums::GreekType::Gamma)] = std::move(g.gamma_);
-        grids[base + Enums::idx(Enums::GreekType::Vega)] = std::move(g.vega_);
-        grids[base + Enums::idx(Enums::GreekType::Theta)] = std::move(g.theta_);
-        grids[base + Enums::idx(Enums::GreekType::Rho)] = std::move(g.rho_);
-      }};
-
   // Generate results
   GreeksResult amerCall{trinomialGreeks<Enums::OptionType::AmerCall>()};
   GreeksResult amerPut{trinomialGreeks<Enums::OptionType::AmerPut>()};
