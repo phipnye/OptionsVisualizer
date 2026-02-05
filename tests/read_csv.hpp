@@ -11,12 +11,12 @@
 
 // Assume we know the number of rows and columns so we don't have to use a
 // vector and then steal the buffers
-[[nodiscard]] inline Eigen::MatrixXd readCSV(const std::string_view file,
+[[nodiscard]] inline Eigen::ArrayXXd readCSV(const std::string_view file,
                                              const Eigen::Index nrow,
                                              const Eigen::Index ncol) {
   std::ifstream in{std::filesystem::path{file}};
   std::string line{};
-  Eigen::MatrixXd res{Eigen::MatrixXd::Zero(nrow, ncol)};
+  Eigen::ArrayXXd res{Eigen::ArrayXXd::Zero(nrow, ncol)};
 
   if (!in.is_open()) {
     throw std::runtime_error{"Unable to open file: " + std::string{file}};

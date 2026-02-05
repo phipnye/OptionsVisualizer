@@ -15,12 +15,12 @@ TEST(PricingTests, ValidateResults) {
 
   // Read in tests - Using ASSERT ensures we stop if data is missing
   const std::filesystem::path dataPath{TEST_DATA_PATH};
-  const Eigen::MatrixXd s{readCSV((dataPath / "s.csv").c_str(), nrow, ncol)};
-  const Eigen::MatrixXd k{readCSV((dataPath / "k.csv").c_str(), nrow, ncol)};
-  const Eigen::MatrixXd r{readCSV((dataPath / "r.csv").c_str(), nrow, ncol)};
-  const Eigen::MatrixXd q{readCSV((dataPath / "q.csv").c_str(), nrow, ncol)};
-  const Eigen::MatrixXd t{readCSV((dataPath / "t.csv").c_str(), nrow, ncol)};
-  const Eigen::MatrixXd sigma{
+  const Eigen::ArrayXXd s{readCSV((dataPath / "s.csv").c_str(), nrow, ncol)};
+  const Eigen::ArrayXXd k{readCSV((dataPath / "k.csv").c_str(), nrow, ncol)};
+  const Eigen::ArrayXXd r{readCSV((dataPath / "r.csv").c_str(), nrow, ncol)};
+  const Eigen::ArrayXXd q{readCSV((dataPath / "q.csv").c_str(), nrow, ncol)};
+  const Eigen::ArrayXXd t{readCSV((dataPath / "t.csv").c_str(), nrow, ncol)};
+  const Eigen::ArrayXXd sigma{
       readCSV((dataPath / "sigma.csv").c_str(), nrow, ncol)};
 
   // Instatiate a manager object to retrieve results
@@ -38,7 +38,8 @@ TEST(PricingTests, ValidateResults) {
 
     if (const std::string fileStem{entry.path().stem().string()};
         std::regex_match(fileStem, pyResFilePattern)) {
-      const Eigen::MatrixXd pyMatrix{readCSV(entry.path().c_str(), nrow, ncol)};
+      const Eigen::ArrayXXd pyResults{
+          readCSV(entry.path().c_str(), nrow, ncol)};
       const std::size_t idx{greekIndexFromFilename(fileStem)};
 
       for (Eigen::Index col{0}; col < ncol; ++col) {
@@ -52,7 +53,7 @@ TEST(PricingTests, ValidateResults) {
 
           // Compare python and c++ results
           const double cppVal{grids[idx](0, 0)};
-          const double pyVal{pyMatrix(row, col)};
+          const double pyVal{pyResults(row, col)};
           EXPECT_NEAR(cppVal, pyVal, 1e-6)
               << "Failure in file: " << fileStem << " at: [" << row << ", "
               << col << "]";
