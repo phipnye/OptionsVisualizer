@@ -56,10 +56,10 @@ The dashboard provides:
 ## Docker Setup
 
 ### Prerequisites
-If you do not have Docker installed, follow the official installation guides for your operating system:
-- [Docker Desktop for Windows](https://docs.docker.com/desktop/install/windows-install/)
-- [Docker Desktop for Mac](https://docs.docker.com/desktop/install/mac-install/)
-- [Docker for Linux](https://docs.docker.com/desktop/install/linux-install/)
+Docker must be installed and running on your system. If you do not have it, download the appropriate version for your OS to enable Docker commands in your terminal:
+- [Windows (Docker Desktop)](https://docs.docker.com/desktop/install/windows-install/)
+- [Mac (Docker Desktop)](https://docs.docker.com/desktop/install/mac-install/)
+- [Linux (Docker Engine)](https://docs.docker.com/engine/install/)
 
 To set up and run the dashboard using Docker, follow the steps below. 
 
