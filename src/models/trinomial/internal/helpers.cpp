@@ -12,7 +12,8 @@ Eigen::ArrayXXd buildSpotLattice(const double spot, const Eigen::ArrayXd& u,
   const double depDbl{static_cast<double>(depth)};
   Eigen::ArrayXd exponents{Eigen::ArrayXd::LinSpaced(nNodes, -depDbl, depDbl)};
 
-  // Use log math to create the grid: exp(log(u) * exponents)
+  // Generate a 2D grid where each cell (i, j) = spot * u[j]^{exponents[i]}
+  // using the identity u^k = exp(k * ln(u)) via matrix outer product for speed
   return spot *
          (exponents.matrix() * u.log().matrix().transpose()).array().exp();
 }

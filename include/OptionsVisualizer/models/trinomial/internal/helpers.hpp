@@ -6,10 +6,14 @@
 
 namespace models::trinomial::helpers {
 
+// Construct the spot lattice for a given depth (i.e., [spot * u^{-d}, spot *
+// u^{-d+1}, ..., spot * u^{d-1}, spot * u^{d}])
 [[nodiscard]] Eigen::ArrayXXd buildSpotLattice(double spot,
                                                const Eigen::ArrayXd& u,
                                                Eigen::Index depth);
 
+// Compute the intrinsic value of a column vector of spot prices against a grid
+// of strike prices
 template <Enums::OptionType OptType, typename Derived>
 [[nodiscard]] Eigen::ArrayXXd intrinsicValue(
     const Eigen::ArrayXXd& strikesGrid,

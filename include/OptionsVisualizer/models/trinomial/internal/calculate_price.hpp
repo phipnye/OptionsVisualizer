@@ -1,22 +1,24 @@
 #pragma once
 
 #include <Eigen/Dense>
+#include <array>
 #include <cmath>
 #include <type_traits>
 #include <utility>
-#include <vector>
 
 #include "OptionsVisualizer/core/Enums.hpp"
-#include "OptionsVisualizer/models/trinomial/internal/constants.hpp"
 #include "OptionsVisualizer/models/trinomial/internal/helpers.hpp"
 
 namespace models::trinomial {
 
+// Calculate price of American options across a grid of sigma x strike values
+// using trinomial pricing methodology
 template <Enums::OptionType OptType>
-[[nodiscard]] Eigen::ArrayXXd calculatePrice(
-    const Eigen::Index nSigma, const Eigen::Index nStrike, const double spot,
-    const double r, const double q, const Eigen::ArrayXXd& sigmasGrid,
-    const Eigen::ArrayXXd& strikesGrid, const double tau) {
+[[nodiscard]] Eigen::ArrayXXd calculatePrice(const double spot, const double r,
+                                             const double q,
+                                             const Eigen::ArrayXXd& sigmasGrid,
+                                             const Eigen::ArrayXXd& strikesGrid,
+                                             const double tau) {
   // Make sure we only use this for American option pricing
   static_assert(
       OptType == Enums::OptionType::AmerCall ||
@@ -26,7 +28,8 @@ template <Enums::OptionType OptType>
   // --- Setup
 
   // Discrete time steps
-  const double dTau{tau / static_cast<double>(constants::trinomialDepth)};
+  static constexpr Eigen::Index trinomialDepth{100};
+  const double dTau{tau / static_cast<double>(trinomialDepth)};
 
   // Stock price multipliers: u = e^(sigma * sqrt(3dt)); d = 1 / u
   const Eigen::ArrayXd u{(sigmasGrid.col(0) * std::sqrt(3.0 * dTau)).exp()};
@@ -56,16 +59,17 @@ template <Enums::OptionType OptType>
   // - q * sigma^2 / 2) + 1 / 6 = 2 / 6 - p_u
   const Eigen::ArrayXXd pD{(2.0 / 6.0) - pU};
 
-  // p_m = 1 - p_u - p_d approx= 2/3
+  // p_m = 1 - p_u - p_d
   const Eigen::ArrayXXd pM{1.0 - pU - pD};
 
   // --- Compute price using backward induction
 
   // Pre-allocate buffers
-  using constants::trinomialDepth;
-  constexpr Eigen::Index maxNodes{2 * trinomialDepth + 1};
-  std::vector nextOptionValues(maxNodes, Eigen::ArrayXXd{nSigma, nStrike});
-  std::vector currOptionValues(maxNodes, Eigen::ArrayXXd{nSigma, nStrike});
+  static constexpr Eigen::Index maxNodes{2 * trinomialDepth + 1};
+  std::array nextOptionValues{
+      Utils::preallocArrays<maxNodes>(sigmasGrid.rows(), sigmasGrid.cols())};
+  std::array currOptionValues{
+      Utils::preallocArrays<maxNodes>(sigmasGrid.rows(), sigmasGrid.cols())};
 
   // Calculate option values at expiration (shape: [node, sigma])
   const Eigen::ArrayXXd expirationSpot{
@@ -88,23 +92,26 @@ template <Enums::OptionType OptType>
     const Eigen::ArrayXXd spotsDepth{helpers::buildSpotLattice(spot, u, depth)};
     const Eigen::Index nNodes{2 * depth + 1};
 
-    for (Eigen::Index node{0}; node < nNodes; ++node) {
-      // Node i at current depends on nodes (i + 2, i + 1, i) (up, mid, down)
-      // from next depth
-      const std::size_t nodeT{static_cast<std::size_t>(node)};
-      const Eigen::ArrayXXd& valU{nextOptionValues[nodeT + 2]};
-      const Eigen::ArrayXXd& valM{nextOptionValues[nodeT + 1]};
-      const Eigen::ArrayXXd& valD{nextOptionValues[nodeT]};
+    // Unsigned integer for indexing arrays
+    std::size_t uNode{0};
 
-      // Calculate expected value: (pU * valUp + pM * valMid + pD * valDown) *
-      // discount
+    for (Eigen::Index sNode{0}; sNode < nNodes; ++sNode, ++uNode) {
+      // Node i at current depends on nodes (i + 2, i + 1, i) (up, mid, down)
+      // from next depth (easiest to understand if you think about the simplest
+      // case where depth is 1 meaning we have three branches (0, 1, 2) and a
+      // single root at 0)
+      const Eigen::ArrayXXd& valU{nextOptionValues[uNode + 2]};
+      const Eigen::ArrayXXd& valM{nextOptionValues[uNode + 1]};
+      const Eigen::ArrayXXd& valD{nextOptionValues[uNode]};
+
+      // Calculate discounted expected value
       const auto continuationValue{(pU * valU + pM * valM + pD * valD) *
                                    discountFactor};
 
       // Update optionValues: American early exercise check
-      currOptionValues[node] =
+      currOptionValues[uNode] =
           continuationValue.cwiseMax(helpers::intrinsicValue<OptType>(
-              strikesGrid, spotsDepth.row(node).transpose()));
+              strikesGrid, spotsDepth.row(sNode).transpose()));
     }
 
     // Swap buffers

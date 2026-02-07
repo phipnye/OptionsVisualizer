@@ -13,8 +13,7 @@ set(SOURCES
         src/pricing/GreeksResult.cpp
         src/core/OptionsManager.cpp
         src/core/linspace.cpp
-        src/params/PricingParamsHash.cpp
-        src/params/PricingParams.cpp
+        src/pricing/PricingParams.cpp
         src/models/trinomial/internal/helpers.cpp
         src/models/bsm/calculate_greeks.cpp)
 
@@ -26,8 +25,6 @@ target_compile_options(PricingEngineCore PUBLIC
         -Wshadow
         -Weffc++
         -Wconversion
-        -Wno-error=sign-compare
-        -Wno-error=array-bounds
         -pedantic-errors
         -Werror
         -fPIC

@@ -1,7 +1,7 @@
 import numpy as np
 from enums import OptionType
 
-_TRINOMIAL_DEPTH: int = 100  # copy from constants.hpp
+_TRINOMIAL_DEPTH: int = 100  # copied from C++ scripts
 
 def _intrinsic(s: np.ndarray, k: np.ndarray, option_type: OptionType) -> np.ndarray:
     if option_type == OptionType.CALL:

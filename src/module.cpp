@@ -4,11 +4,10 @@
 #include <pybind11/pybind11.h>
 
 #include <Eigen/Dense>
-#include <array>
+#include <type_traits>
 
 #include "OptionsVisualizer/core/Enums.hpp"
 #include "OptionsVisualizer/core/OptionsManager.hpp"
-#include "OptionsVisualizer/core/globals.hpp"
 #include "OptionsVisualizer/core/linspace.hpp"
 namespace py = pybind11;
 
@@ -33,29 +32,45 @@ PYBIND11_MODULE(CppPricingEngine, m) {
         py::gil_scoped_release noGil{};
 
         // Get the reference to the array in the cache
-        const std::array<Eigen::ArrayXXd, globals::nGrids>& grids{
-            manager.get(nSigma, nStrike, spot, r, q, sigmaLo, sigmaHi, strikeLo,
-                        strikeHi, tau)};
-
-        constexpr std::size_t nGreeks{Enums::idx(Enums::GreekType::COUNT)};
-        constexpr std::size_t nOptTypes{Enums::idx(Enums::OptionType::COUNT)};
-        const std::size_t greekIdx{Enums::idx(greekType)};
+        const auto& grids{manager.get(nSigma, nStrike, spot, r, q, sigmaLo,
+                                      sigmaHi, strikeLo, strikeHi, tau)};
 
         // Re-acquire the GIL
         py::gil_scoped_acquire gil{};
-        py::tuple output(nOptTypes);
+
+        // Pass immuatable views of data to python
+        static constexpr std::size_t nGreeks{
+            Enums::idx(Enums::GreekType::COUNT)};
+        static constexpr std::size_t nOptTypes{
+            Enums::idx(Enums::OptionType::COUNT)};
+        const std::size_t greekIdx{Enums::idx(greekType)};
+        py::tuple output{nOptTypes};
 
         for (std::size_t optIdx{0}; optIdx < nOptTypes; ++optIdx) {
-          // Pass immuatable views of data to python
-          const Eigen::ArrayXXd& grid{grids[optIdx * nGreeks + greekIdx]};
+          const auto& grid{grids[optIdx * nGreeks + greekIdx]};
+
+          // Strides are defined for column-major order
+          static_assert(!std::decay_t<decltype(grid)>::IsRowMajor,
+                        "Strides are defined for column-major storage order.");
+          constexpr py::ssize_t szDbl{sizeof(double)};
+
+          // Map an Eigen array to a numpy array without copying the underlying
+          // data
           output[optIdx] = py::array{
-              {grid.rows(), grid.cols()}, // shape
-              {sizeof(double),
-               sizeof(double) *
-               static_cast<std::size_t>(grid.outerStride())}, // strides
-              grid.data(), // data pointer
-              py::cast(&manager) // owner
-          };
+              // Shape
+              {grid.rows(), grid.cols()},
+              // Strides (defined for column major order)
+              {
+                  szDbl,                      // distance to next row
+                  szDbl * grid.outerStride()  // distance to next column
+              },
+              // Data pointer
+              grid.data(),
+              // Owner/handle (tells python not to delete this memory when the
+              // array goes out of scope since the manager object owns it)
+              py::cast(&manager)};
+
+          // Don't allow the object to be writeable in python
           output[optIdx].attr("flags").attr("writeable") = false;
         }
 
@@ -87,7 +102,7 @@ PYBIND11_MODULE(CppPricingEngine, m) {
 
   // --- Helper functions
 
-  // Generate coordina
+  // Generate coordinates
   m.def("linspace", &linspace, py::arg("size"), py::arg("lo"), py::arg("hi"),
         "Create a linearly spaced vector");
 }

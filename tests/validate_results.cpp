@@ -9,7 +9,8 @@
 #include "read_data.hpp"
 
 TEST(PricingTests, ValidateResults) {
-  const std::filesystem::path dataPath{TEST_DATA_PATH};
+  namespace fs = std::filesystem;
+  const fs::path dataPath{TEST_DATA_PATH};
 
   // Determine number of testing observations
   const Eigen::DenseIndex nrow{
@@ -26,14 +27,15 @@ TEST(PricingTests, ValidateResults) {
       readCSV((dataPath / "sigma.csv").c_str(), nrow, ncol)};
 
   // Instatiate a manager object to retrieve results (cache all of the results)
-  constexpr std::size_t nThreads{1};
   const std::size_t lruCapacity{static_cast<std::size_t>(nrow * ncol)};
-  OptionsManager manager{lruCapacity, nThreads};
+  // constexpr std::size_t nThreads{1};
+  // OptionsManager manager{lruCapacity, nThreads};
+  OptionsManager manager{lruCapacity};
 
   // Iterate through python results files
   const std::regex pyResFilePattern{"^(amer|euro)_(call|put)_[a-z]+$"};
 
-  for (const auto& entry : std::filesystem::directory_iterator(dataPath)) {
+  for (const auto& entry : fs::directory_iterator(dataPath)) {
     const std::string fileStem{entry.path().stem().string()};
 
     if (!std::regex_match(fileStem, pyResFilePattern)) {
@@ -46,7 +48,7 @@ TEST(PricingTests, ValidateResults) {
     for (Eigen::Index col{0}; col < ncol; ++col) {
       for (Eigen::Index row{0}; row < nrow; ++row) {
         // Extract results from the manager
-        constexpr Eigen::Index surfaceSize{1};
+        static constexpr Eigen::Index surfaceSize{1};
         const auto& grids{manager.get(surfaceSize, surfaceSize, s(row, col),
                                       r(row, col), q(row, col), sigma(row, col),
                                       sigma(row, col), k(row, col), k(row, col),
@@ -55,7 +57,7 @@ TEST(PricingTests, ValidateResults) {
         // Compare python and c++ results
         const double cppVal{grids[idx](0, 0)};
         const double pyVal{pyResults(row, col)};
-        EXPECT_NEAR(cppVal, pyVal, 1e-4)
+        EXPECT_NEAR(cppVal, pyVal, 1e-6)
             << "Failure in file: " << fileStem << " at: [" << row << ", " << col
             << "]";
       }

@@ -13,17 +13,21 @@ GreeksResult PricingSurface::bsmCallGreeks() const {
   const double sqrtTau{std::sqrt(tau_)};
   const Eigen::ArrayXXd sigmaSqrtTau{sigmasGrid_ * sqrtTau};
   const Eigen::ArrayXXd d1{((spot_ / strikesGrid_).log() +
-                            ((r_ - q_ + 0.5 * sigmasGrid_.square()) * tau_)) /
+                            (((r_ - q_) + 0.5 * sigmasGrid_.square()) * tau_)) /
                            sigmaSqrtTau};
 
   // BSM intermediate term d2 = d1 - sigma * sqrt(T)
   const auto d2{d1 - sigmaSqrtTau};
 
   // --- Standard normal CDF and PDF using error function
-  const Eigen::ArrayXXd cdfD1{0.5 * (1.0 + (d1 / std::sqrt(2.0)).erf())};
-  const Eigen::ArrayXXd cdfD2{0.5 * (1.0 + (d2 / std::sqrt(2.0)).erf())};
-  const Eigen::ArrayXXd pdfD1{(1.0 / std::sqrt(2.0 * std::numbers::pi)) *
-                              (-0.5 * d1.square()).exp()};
+  using std::numbers::sqrt2;
+  const Eigen::ArrayXXd cdfD1{0.5 * (1.0 + (d1 / sqrt2).erf())};
+  const Eigen::ArrayXXd cdfD2{0.5 * (1.0 + (d2 / sqrt2).erf())};
+
+  // 1 / sqrt(2pi) = (1 / sqrt(pi)) * (1 / sqrt(2)) = (1 / sqrt(pi)) * (sqrt(2)
+  // / 2)
+  constexpr double invSqrt2pi{std::numbers::inv_sqrtpi * sqrt2 / 2.0};
+  const Eigen::ArrayXXd pdfD1{invSqrt2pi * (-0.5 * d1.square()).exp()};
 
   // Constant exponential factors
   const double expQTau{std::exp(-q_ * tau_)};
@@ -82,7 +86,7 @@ GreeksResult PricingSurface::bsmPutGreeks(
       -> theta_put = theta_call - S * q * e^(-qT) + K * r * e^(-rT)
   */
   Eigen::ArrayXXd theta{callResults.theta_ - (spot_ * q_ * expQTau) +
-                        (strikesGrid_ * r_ * expRTau)};
+                        (strikesGrid_ * (r_ * expRTau))};
 
   /*
       rho_call - rho_put = d/dr[C - P]
@@ -90,7 +94,7 @@ GreeksResult PricingSurface::bsmPutGreeks(
                          = K * T * e^(-rT)
       -> rho_put = rho_call - K * T * e^(-rT)
   */
-  Eigen::ArrayXXd rho{callResults.rho_ - (strikesGrid_ * tau_ * expRTau)};
+  Eigen::ArrayXXd rho{callResults.rho_ - (strikesGrid_ * (tau_ * expRTau))};
 
   return GreeksResult{std::move(price),
                       std::move(delta),

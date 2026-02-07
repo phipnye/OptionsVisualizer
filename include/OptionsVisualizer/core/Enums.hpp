@@ -1,11 +1,12 @@
 #pragma once
 
 #include <cstddef>
+#include <cstdint>
 
 namespace Enums {
 
-// Enums for determing type of option
-enum class GreekType : std::size_t {
+// Enum for determing type of greek
+enum class GreekType : std::uint8_t {
   Price,
   Delta,
   Gamma,
@@ -15,7 +16,8 @@ enum class GreekType : std::size_t {
   COUNT
 };
 
-enum class OptionType : std::size_t {
+// Enum for determining option type
+enum class OptionType : std::uint8_t {
   AmerCall,
   AmerPut,
   EuroCall,
@@ -23,12 +25,12 @@ enum class OptionType : std::size_t {
   COUNT
 };
 
-[[nodiscard]] constexpr std::size_t idx(const OptionType t) noexcept {
-  return static_cast<std::size_t>(t);
+[[nodiscard]] constexpr std::size_t idx(const OptionType o) noexcept {
+  return static_cast<std::size_t>(o);
 }
 
-[[nodiscard]] constexpr std::size_t idx(const GreekType t) noexcept {
-  return static_cast<std::size_t>(t);
+[[nodiscard]] constexpr std::size_t idx(const GreekType g) noexcept {
+  return static_cast<std::size_t>(g);
 }
 
 }  // namespace Enums

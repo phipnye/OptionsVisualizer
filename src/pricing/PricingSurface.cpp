@@ -1,11 +1,10 @@
 #include "OptionsVisualizer/pricing/PricingSurface.hpp"
 
+#include <BS_thread_pool.hpp>
 #include <Eigen/Dense>
 #include <array>
 
-#include "BS_thread_pool.hpp"
 #include "OptionsVisualizer/core/Enums.hpp"
-#include "OptionsVisualizer/core/globals.hpp"
 #include "OptionsVisualizer/core/linspace.hpp"
 #include "OptionsVisualizer/pricing/GreeksResult.hpp"
 
@@ -19,8 +18,6 @@ PricingSurface::PricingSurface(const Eigen::Index nSigma,
       strikesGrid_{linspace(nStrike, strikeLo, strikeHi)
                        .transpose()
                        .replicate(nSigma, 1)},
-      nSigma_{nSigma},
-      nStrike_{nStrike},
       spot_{spot},
       r_{r},
       q_{q},
@@ -40,8 +37,7 @@ void PricingSurface::appendGreeks(GridArray& grids,
   grids[base + Enums::idx(Enums::GreekType::Rho)] = std::move(g.rho_);
 }
 
-std::array<Eigen::ArrayXXd, globals::nGrids> PricingSurface::calculateGrids()
-    const {
+PricingSurface::GridArray PricingSurface::calculateGrids() const {
   // Generate results
   GreeksResult amerCall{trinomialGreeks<Enums::OptionType::AmerCall>()};
   GreeksResult amerPut{trinomialGreeks<Enums::OptionType::AmerPut>()};
@@ -49,7 +45,7 @@ std::array<Eigen::ArrayXXd, globals::nGrids> PricingSurface::calculateGrids()
   GreeksResult euroPut{bsmPutGreeks(euroCall)};
 
   // Move results to output array
-  std::array<Eigen::ArrayXXd, globals::nGrids> grids{};
+  GridArray grids{};
   appendGreeks(grids, Enums::OptionType::AmerCall, std::move(amerCall));
   appendGreeks(grids, Enums::OptionType::AmerPut, std::move(amerPut));
   appendGreeks(grids, Enums::OptionType::EuroCall, std::move(euroCall));
