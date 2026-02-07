@@ -13,6 +13,9 @@ RUN apt-get update && apt-get install -y \
     unzip \
     tar \
     pkg-config \
+    autoconf \
+    automake \
+    autoconf-archive \
     python3-dev \
     python3-pip \
     python3-venv && \
@@ -26,8 +29,9 @@ RUN git clone https://github.com/microsoft/vcpkg.git && \
 # Copy source code and config files
 COPY src/ ./src/
 COPY include/ ./include/
+COPY tests/ ./tests/
 COPY python/ ./python/
-COPY CMakeLists.txt vcpkg.json pyproject.toml ./
+COPY CMakeLists.txt vcpkg.json pyproject.toml README.md ./
 
 # Build and install the project into virtual environment
 RUN python3 -m venv ./python/.venv && \

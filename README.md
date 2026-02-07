@@ -53,6 +53,28 @@ The dashboard provides:
    - A summary box shows the current fixed parameters for quick reference.
 
 
+## Docker Setup
+
+### Prerequisites
+If you do not have Docker installed, follow the official installation guides for your operating system:
+- [Docker Desktop for Windows](https://docs.docker.com/desktop/install/windows-install/)
+- [Docker Desktop for Mac](https://docs.docker.com/desktop/install/mac-install/)
+- [Docker for Linux](https://docs.docker.com/desktop/install/linux-install/)
+
+To set up and run the dashboard using Docker, follow the steps below. 
+
+Note: The build process compiles the C++ backend and installs dependencies, which may take several minutes to complete.
+
+1. Build the image:
+docker build -t option-pricing-dashboard .
+
+2. Run the container:
+docker run -p 8050:8050 option-pricing-dashboard
+
+3. Access the dashboard:
+Navigate to http://localhost:8050 in your web browser.
+
+
 ## Technical Notes
 
 - Uses a **C++ backend** for fast option pricing calculations. This backend takes advanctage of multithreaded and vectorized evaulation along with caching and backward induction to make the computations highly efficient.

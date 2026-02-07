@@ -20,7 +20,7 @@ def is_valid_value(name: str, val: float | list | tuple) -> bool:
     lo, hi = _NUMERIC_LIMITS[name]
 
     if isinstance(val, (list, tuple)):
-        return len(val) == 2 and val[0] <= val[1] and lo <= val[0] <= hi and lo <= val[1] <= hi
+        return len(val) == 2 and val[0] < val[1] and lo <= val[0] <= hi and lo <= val[1] <= hi
 
     return lo <= val <= hi
 
