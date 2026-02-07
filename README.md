@@ -1,5 +1,7 @@
 # Option Pricing Dashboard
 
+![](thumbnail/thumbnail.png)
+
 ## Overview
 
 This project is an **interactive financial dashboard** for exploring option pricing using the **Black-Scholes** and **trinomial pricing models**. Users can visualize how option values and sensitivities (Greeks) change across different strikes, volatilities, and other parameters in real time.
