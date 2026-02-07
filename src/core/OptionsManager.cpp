@@ -7,8 +7,8 @@
 #include <cstddef>
 #include <list>
 
-#include "OptionsVisualizer/pricing/PricingParams.hpp"
 #include "OptionsVisualizer/lru/LRUCache.hpp"
+#include "OptionsVisualizer/pricing/PricingParams.hpp"
 #include "OptionsVisualizer/pricing/PricingSurface.hpp"
 
 // Constructs a thread pool with number of threads available on hardware

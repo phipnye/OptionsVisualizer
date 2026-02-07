@@ -5,7 +5,6 @@ build-backend = "scikit_build_core.build"
 
 [tool.scikit-build]
 cmake.args = [
-    # "-DCMAKE_BUILD_TYPE=Debug",
     "-DCMAKE_TOOLCHAIN_FILE=./vcpkg/scripts/buildsystems/vcpkg.cmake",
     "-DCMAKE_CXX_COMPILER=/usr/bin/g++"
 ]
@@ -16,8 +15,16 @@ name = "cpp-pricing-engine"
 version = "1.0.4"
 description = "High-performance option pricing surfaces and greeks using C++ and pybind11."
 
-# Essential runtime dependencies (using Eigen::Vector -> np.array in C++ source)
-dependencies = ["numpy"]
+# Essential runtime dependencies
+dependencies = [
+    "dash==3.3.0",
+    "dash_bootstrap_components==2.0.4",
+    "dash_bootstrap_templates==2.1.0",
+    "numpy==2.4.0",
+    "plotly==6.5.0",
+    "pydantic==2.12.5",
+#    "scipy==1.17.0", # only needed for generating tests
+]
 
 readme = "README.md"
 license = {text = "MIT"}

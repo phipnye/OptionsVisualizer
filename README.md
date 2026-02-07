@@ -1,6 +1,4 @@
-# Option Pricing Dashboard (Work in Progress)
-
-> This project is under active development. Features and visualizations may change.
+# Option Pricing Dashboard
 
 ## Overview
 
